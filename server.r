@@ -64,6 +64,20 @@ doTrend <- TRUE
 exampleDat <- matrix(c(1,0,20,2,0,20,4,10,20,8,20,20,16,20,20),byrow=TRUE,nrow=5)
 colnames(exampleDat) <- c("doses","responses","sizes")
 
+if(dir.exists("www")){
+  #delete leftover files if they are present from previous runs
+  #this only matters when the repository is set up in rstudio
+  #and run inside of rstudio in usual way.  When the tool is run
+  #through a runGitHub(...) command, it creates temporary space 
+  #that is removed on completion (the tool implementation is killed)
+  pdfFiles <- list.files(path="www",pattern = "pdf$",full.names = TRUE)
+  pngFiles <- list.files(path="www",pattern = "png$",full.names = TRUE)
+  xlsxFiles <- list.files(path="www",pattern = "xlsx$",full.names = TRUE)
+  files2remove <- c(pdfFiles,pngFiles,xlsxFiles)
+  unlink(files2remove)
+}
+if(!dir.exists("www"))dir.create("www")
+
 shinyServer(function(input,output,session) {
 
   ## masterClean is just so I can override the clients current plot options if they choose to download a pdf or Excel file.
