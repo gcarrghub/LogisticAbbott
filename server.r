@@ -80,139 +80,171 @@ if(!dir.exists("www"))dir.create("www")
 
 shinyServer(function(input,output,session) {
 
-  ## masterClean is just so I can override the clients current plot options if they choose to download a pdf or Excel file.
-  plotFun <- function(changeCexTF=FALSE,browserTF=TRUE,masterClean=FALSE){
-    
-    plotObs <- analysisReact()[["plotObs"]]
-    
-    bndCurves <- input$bndCurves
-    annotate <- input$annotate
-    xlabSTR <- input$xlab
-    ylabSTR <- input$ylab
-    showSTD <- input$showSTD
-    
-    if(!browserTF){
-      bndCurves <- TRUE
-      annotate <- TRUE
-      showSTD <- TRUE	  
-      if(masterClean){
-        bndCurves <- FALSE
-        annotate <- FALSE
-        showSTD <- FALSE	  
+  inputDataFile <- reactive({
+    shiny::req(input$inputFile)
+    inFile <- input$inputFile
+    print(inFile)
+    if(!is.null(inFile)){
+      #reactiveVars$zeros <- FALSE
+      fileExt <- sub(".*\\.","",inFile[1])
+      
+      ## Use grepl because readWorksheet works with both xls and xlsx versions of wb.
+      if(grepl("xls",fileExt)){
+        ### XLCONNECT here
+        wb <- loadWorkbook(inFile$datapath)# same in XLconnect as openxlsx
+        shName <- input$shName
+        if(is.null(shName)){
+          indata <- NULL
+        } else {
+          ### indata <- readWorksheet(wb, sheet=shName, header=TRUE)### XLCONNECT here
+          indata <- readWorkbook(wb, sheet=shName, colNames=TRUE)### XLCONNECT here
+        }
       }
+      if(fileExt=="txt"){
+        indata <- read.table(inFile$datapath,header=TRUE)
+      }
+      if(fileExt=="csv"){
+        indata <- read.csv(inFile$datapath,header=TRUE)
+      }
+      print(indata)
+      return(indata)
     }
     
-    isolate({
-      ## Assign the objects from analysisReact that are needed for plotting to this environment
-      assignFun <- function(i){
-        assign(names(plotObs)[i],plotObs[[i]],
-               envir=environment(match.fun(assignFun)) )
-      }
-      sapply(1:length(plotObs), assignFun)
-      ECxLevel <- rep(predictionModel(MLE.ECx,MLE.ECx["ldXX"],ECx=ECx.targets),2)    
-    })
-    
-    
-    plotSetup <- function(){
-      
-      plot(x=10^logDoses,y=indata$responses/indata$sizes,log='x',ylim=c(0,1),xlim=10^range(c(logDoses,newX)),
-           xlab=xlabSTR,ylab=ylabSTR,type='n',axes=FALSE)
-      axis(side=1,at=unique(indata$doses[indata$doses>0]),label=sapply(unique(indata$doses[indata$doses>0]),format))
-      if(any(indata$doses==0)){
-        points(x=10^(logDoses[1]),y=indata$responses[1]/indata$sizes[1],pch=16)
-        axis(side=1,at=10^min(logDoses),label="Control",las=2)
-        axis.break(breakpos=10^(mean(logDoses[1:2])-.03*diff(par("usr")[1:2])))
-      }
-      newY <- predictionModel(params=MLE.ECx,logdoses=newX,ECx=ECx.targets)
-      points(x=10^logDoses[indata$doses>0],y=indata$responses[indata$doses>0]/indata$sizes[indata$doses>0])
-      axis(side=2)
-      box(lwd=2) 
-      
-      lines(x=10^newX,y=newY,lwd=3)
-      lines(x=10^newX,y=newY,lwd=2,lty=2,col='gray')
-      
-      if(any(indata$doses==0)){
-        lines(x=10^c(par("usr")[1],mean(logDoses[1:2])-.06*diff(par("usr")[1:2])),y=rep(MLE.ECx["BG"],2),lwd=3)
-        lines(x=10^c(par("usr")[1],mean(logDoses[1:2])-.06*diff(par("usr")[1:2])),y=rep(MLE.ECx["BG"],2),lwd=2,lty=2,col="gray")
-        lines(x=10^c(mean(logDoses[1:2])-.06*diff(par("usr")[1:2]),min(newX)),
-              y=predictionModel(params=MLE.ECx,logdoses=c(-Inf,newX[1]),ECx=0.5),col='gray',lwd=2,lty="dotted")
-        
-      }
-      CIlineVals <- results[c("PLL.lower","PLL.upper")]
-      if(CIlineVals[1]<10^par("usr")[1])CIlineVals[1]<-10^par("usr")[1]
-      if(CIlineVals[2]>10^par("usr")[2])CIlineVals[2]<-10^par("usr")[2]
-      
-      lines(x=CIlineVals,y=ECxLevel,lwd=3)
-      #if(showSTD)lines(x=results[c("STD.lower","STD.upper")],y=ECxLevel,lwd=2,col="cyan")
-      lines(x=CIlineVals,y=rep(par("usr")[3],2),lwd=4)
-      rug(results["ECx"],side=1)
-      if(any(indata$doses==0)){
-        rug(side=2,x=predictionModel(params=MLE.ECx,logdoses=log(0),ECx=ECx.targets),lwd=3)
-        rug(side=2,x=predictionModel(params=MLE.ECx,logdoses=log(0),ECx=ECx.targets),lwd=2,lty=2,col="gray")
-      }
+  })
+
+  getFileExt <- reactive({
+    # Read in the .csv input data
+    inFile <- input$inputFile
+    if(!is.null(inFile)){
+      fileExt <- sub(".*\\.","",inFile$name)
+      return(fileExt)
+    } else return(NULL)
+  })
+  
+  ### If it is xls or xlsx, select the sheet to use
+  ### By default, the first (or only if the case) sheet is selected
+  output$sheetUI <- renderUI({
+    fileExt <- getFileExt()
+    #if(debugTF)print(fileExt)
+    #print(fileExt)
+    inFile <- input$inputFile
+    #print(inFile)
+    #print(grepl("xls",fileExt))
+    #print(!is.null(fileExt) && grepl("xls",fileExt))
+    ### XLCONNECT here
+    if( !is.null(fileExt) && grepl("xls",fileExt) ){
+      ### wb <- loadWorkbook(inFile$datapath)
+      ### shNames <- getSheets(wb)
+      #print(str(inFile))
+      wb <- loadWorkbook(file = inFile$datapath)
+      #print(str(wb))
+      shNames <- wb$sheet_names
+      shNames <- shNames[sapply(shNames,FUN=function(SN){
+        testSheet <- readWorkbook(wb, sheet=SN, colNames=TRUE)
+        numericCols <- sum(unlist(lapply(testSheet,is.numeric)))
+        (numericCols>2)
+      })]
+      #print(shNames)
+      selectInput('shName', 'Select Sheet Containing Data', shNames)
+    } else NULL
+  })
+  
+  output$doseColUI <- renderUI({
+    shiny::req(inputDataFile())
+    namesInp <- names(inputDataFile())
+    if (all(c("doses", "responses", "sizes") %in% namesInp)) {
+      NULL
+    } else {
+      namesInFrame <- names(inputDataFile())
+      return(
+        selectInput(
+          inputId = "nameDoseCol",
+          "Select Concentration Variable",
+          namesInFrame,
+          namesInFrame[1]
+        )
+      )
+      #if(debugTF)print(input$nameYCol)
     }
-    
-    cexAbForm <- 0.6
-    cexResTab <- .75
-    cexData <- 0.7
-    cexDate <- 0.5
-    if(changeCexTF){
-      cexAbForm <- .75
-      cexResTab <- .9
-      cexData <- 0.9	
-      cexDate <- 0.8
+  })
+  
+  output$respColUI <- renderUI({
+    shiny::req(inputDataFile())
+    namesInp <- names(inputDataFile())
+    if (all(c("doses", "responses", "sizes") %in% namesInp)) {
+      NULL
+    } else {
+      namesInFrame <- names(inputDataFile())
+      return(
+        selectInput(
+          inputId = "nameRespCol",
+          "Select Response Variable",
+          namesInFrame,
+          namesInFrame[2]
+        )
+      )
+      #if(debugTF)print(input$nameDoseCol)
     }
-    ## Function call and plot add-ons
-    plotSetup()
-    if(bndCurves){
-      lines(x=10^newX,y=predictionModel(params=lowerPars,logdoses=newX,ECx=ECx.targets),col="gray")
-      apply(lowerLines,1,FUN=function(lowerPARS)lines(x=10^newX,y=predictionModel(params=lowerPARS,logdoses=newX,ECx=ECx.targets),col="gray"))
-      #somehow when 2-param model, the beta comes back unnamed, so need to work around
-      if(modelSTR!="abbott")lines(x=10^newX,y=predictionModel(params=c(beta=lowerPars[1],lowerPars[-1]),logdoses=newX,ECx=ECx.targets),col="red")
-      if(modelSTR=="abbott")lines(x=10^newX,y=predictionModel(params=lowerPars,logdoses=newX,ECx=ECx.targets),col="red")
-      abline(v=10^lowerPars["ldXX"],col="gray",lty=2)
-      lines(x=10^newX,y=predictionModel(params=upperPars,logdoses=newX,ECx=ECx.targets),col="gray")
-      apply(upperLines,1,FUN=function(lowerPARS)lines(x=10^newX,y=predictionModel(params=lowerPARS,logdoses=newX,ECx=ECx.targets),col="gray"))
-      if(modelSTR!="abbott")lines(x=10^newX,y=predictionModel(params=c(beta=upperPars[1],upperPars[-1]),logdoses=newX,ECx=ECx.targets),col="red")
-      if(modelSTR=="abbott")lines(x=10^newX,y=predictionModel(params=upperPars,logdoses=newX,ECx=ECx.targets),col="red")
-      abline(v=10^upperPars["ldXX"],col="gray",lty=2)
+  })
+  
+  output$sizeColUI <- renderUI({
+    shiny::req(inputDataFile())
+    namesInp <- names(inputDataFile())
+    if (all(c("doses", "responses", "sizes") %in% namesInp)) {
+      NULL
+    } else {
+      namesInFrame <- names(inputDataFile())
+      return(
+        selectInput(
+          inputId = "nameSizeCol",
+          "Select Size Variable",
+          namesInFrame,
+          namesInFrame[3]
+        )
+      )
+      #if(debugTF)print(input$nameDoseCol)
     }
-    if(annotate){
-      #!put formula on lower-right region of figure, depending on type
-      #if(modelSTR=="abbott")mtext(line=-2,side=1,adj=1,cex=.6,
-      if(modelSTR=="abbott")mtext(line=-2,side=1,adj=.95,cex=cexAbForm,
-                                  text=expression(plain(P)==bgroup("(",
-                                                                   atop(
-                                                                     paste(C,phantom(X(1-C)*over(1,textstyle(1+e)^textstyle({-beta*group("[",log[10](d)-LC[50],"]")}))),phantom(XX),dose==0),
-                                                                     paste(C+(1-C)*over(textstyle(1),textstyle(1+e)^textstyle({-beta*group("[",log[10](d)-LC[50],"]")})),phantom(XX),dose>0)),
-                                                                   "")))
-      #if(modelSTR!="abbott")mtext(line=-2,side=1,adj=1,
-      if(modelSTR!="abbott")mtext(line=-2,side=1,adj=.95,
-                                  text=expression(plain(P)==
-                                                    paste(over(textstyle(1),textstyle(1+e)^textstyle({-beta*group("[",log[10](d)-LC[50],"]")})))))
-      
-      #lines(x=10^newX,y=predict(glmObject,new=data.frame(logDoses=newX),type="response"),col='gray')
-      #lines(x=10^newX,y=predictionModel(params=nlObject[["par"]],logdoses=newX,ECx=0.5),lwd=2)
-      stampSTR <- date()
-      #if(is.character(inputFile))stampSTR <- paste(stampSTR,inputFile,sep="\n")
-      mtext(side=1,line=-1,outer=TRUE,text=stampSTR,cex=cexDate,adj=0.98)
-      
-      par(new=TRUE)
-      plot(1,1,type='n',axes=FALSE,xlab='',ylab='')
-      if(browserTF)addtable2plot("topleft",table=indata,xjust=0,yjust=0,cex=cexData)
-      addtable2plot(x=par("usr")[2],y=par("usr")[4],
-                    table=data.frame(
-                      X=100*ECx.targets,
-                      ECx=signif(results["ECx"],digits=3),
-                      lowerCI=signif(results["PLL.lower"],digits=3),
-                      upperCI=signif(results["PLL.upper"],digits=3),
-                      confLevel=100*confidenceCI),
-                    xjust=1,yjust=1,cex=cexResTab)
-    }
-    
-  }
+  })
   
   
+  dataOrg <- reactive({
+    shiny::req(inputDataFile())
+    print("dataOrg")
+    namesInp <- names(inputDataFile())
+    print(namesInp)
+    if (all(c("doses", "responses", "sizes") %in% namesInp)) {
+      indata <-
+        inputDataFile()[, c("doses", "responses", "sizes")]
+    }
+    if (!all(c("doses", "responses", "sizes") %in% namesInp)) {
+      dataDirty <- inputDataFile()
+      ## Have to make sure the UIs are generated before I subset.
+      #if (is.null(input$nameSizeCol))
+      #  return(NULL)
+      indata <-
+        dataDirty[, c(input$nameDoseCol, input$nameRespCol, input$nameSizeCol)]
+      names(indata) <- c("doses", "responses", "sizes")
+    }
+    print(indata)
+    dose0Flag <- NULL
+    #assure data is in dose order
+    indata <- indata[order(indata$doses), ]
+    #aggregate rows that are from same doses
+    indata <- data.frame(doses = indata$doses,
+                         as.data.frame(sapply(
+                           indata[, c("responses", "sizes")],
+                           FUN = function(x, index) {
+                             unname(tapply(x, INDEX = indata$doses, FUN = sum))
+                           }
+                         )))
+    if (any(indata$doses <= 0) & input$modelType=="lcx") {
+      indata <- subset(indata, doses > 0)
+      dose0Flag <-
+        "*At least one dose value was 0 or less and was removed from the analysis"
+    }
+    return(list(indata = indata, dose0Flag = dose0Flag))
+    #} else return(list(indata=indata,dose0Flag=dose0Flag,badDataFlag=badDataFlag))
+  })
   
   performZCA <- function(){
     input$updateRes
@@ -357,140 +389,21 @@ shinyServer(function(input,output,session) {
     
   }
   
-  getFileExt <- reactive({
-	# Read in the .csv input data
-    inFile <- input$inputFile
-    if(!is.null(inFile)){
-	  fileExt <- sub(".*\\.","",inFile$name)
-	  return(fileExt)
-    } else return(NULL)
-  })
-  
-  ### If it is xls or xlsx, select the sheet to use
-  ### By default, the first (or only if the case) sheet is selected
-  output$sheetUI <- renderUI({
-    fileExt <- getFileExt()
-    #if(debugTF)print(fileExt)
-    #print(fileExt)
-    inFile <- input$inputFile
-    #print(inFile)
-    #print(grepl("xls",fileExt))
-    #print(!is.null(fileExt) && grepl("xls",fileExt))
-    ### XLCONNECT here
-    if( !is.null(fileExt) && grepl("xls",fileExt) ){
-      ### wb <- loadWorkbook(inFile$datapath)
-      ### shNames <- getSheets(wb)
-      #print(str(inFile))
-      wb <- loadWorkbook(file = inFile$datapath)
-      #print(str(wb))
-      shNames <- wb$sheet_names
-      shNames <- shNames[sapply(shNames,FUN=function(SN){
-        testSheet <- readWorkbook(wb, sheet=SN, colNames=TRUE)
-        numericCols <- sum(unlist(lapply(testSheet,is.numeric)))
-        (numericCols>2)
-      })]
-      #print(shNames)
-      selectInput('shName', 'Select Sheet Containing Data', shNames)
-    } else NULL
-  })
-  
-  output$doseColUI <- renderUI({
-    shiny::req(inputDataFile())
-    namesInp <- names(inputDataFile())
-    if (all(c("doses", "responses", "sizes") %in% namesInp)) {
-      NULL
-    } else {
-      namesInFrame <- names(inputDataFile())
-      return(
-        selectInput(
-          inputId = "nameDoseCol",
-          "Select Concentration Variable",
-          namesInFrame,
-          namesInFrame[1]
-        )
-      )
-      #if(debugTF)print(input$nameYCol)
-    }
-  })
-  
-  output$respColUI <- renderUI({
-    shiny::req(inputDataFile())
-    namesInp <- names(inputDataFile())
-    if (all(c("doses", "responses", "sizes") %in% namesInp)) {
-      NULL
-    } else {
-      namesInFrame <- names(inputDataFile())
-      return(
-        selectInput(
-          inputId = "nameRespCol",
-          "Select Response Variable",
-          namesInFrame,
-          namesInFrame[2]
-        )
-      )
-      #if(debugTF)print(input$nameDoseCol)
-    }
-  })
-  
-  output$sizeColUI <- renderUI({
-    shiny::req(inputDataFile())
-    namesInp <- names(inputDataFile())
-    if (all(c("doses", "responses", "sizes") %in% namesInp)) {
-      NULL
-    } else {
-      namesInFrame <- names(inputDataFile())
-      return(
-        selectInput(
-          inputId = "nameSizeCol",
-          "Select Size Variable",
-          namesInFrame,
-          namesInFrame[3]
-        )
-      )
-      #if(debugTF)print(input$nameDoseCol)
-    }
-  })
-  
-  inputDataFile <- reactive({
-    shiny::req(input$inputFile)
-    inFile <- input$inputFile
-    print(inFile)
-    if(!is.null(inFile)){
-      #reactiveVars$zeros <- FALSE
-      fileExt <- sub(".*\\.","",inFile[1])
-      
-      ## Use grepl because readWorksheet works with both xls and xlsx versions of wb.
-      if(grepl("xls",fileExt)){
-        ### XLCONNECT here
-        wb <- loadWorkbook(inFile$datapath)# same in XLconnect as openxlsx
-        shName <- input$shName
-        if(is.null(shName)){
-          indata <- NULL
-        } else {
-          ### indata <- readWorksheet(wb, sheet=shName, header=TRUE)### XLCONNECT here
-          indata <- readWorkbook(wb, sheet=shName, colNames=TRUE)### XLCONNECT here
-        }
-      }
-      if(fileExt=="txt"){
-        indata <- read.table(inFile$datapath,header=TRUE)
-      }
-      if(fileExt=="csv"){
-        indata <- read.csv(inFile$datapath,header=TRUE)
-      }
-      print(indata)
-      return(indata)
-    }
-    
-  })
   
   ## Observe is like a reactive expression. I think it is appropriate to change tabs to the data tab each time the file 
   ##  extension is changed.  Better to switch any time any of the data selection options change
-  observe({
-    ## Throw dataOrg() in so that anytime a selection is made that has the potential to change the data, redirect the client to the 
-	##   data tab.  This is causing shiny to crash IDK why.  I have tried inputDataFile() as well but to no avail.
-	if(!is.null(getFileExt()))updateTabsetPanel(session,"tabManager",selected="dataTab")
-	
-  })
+  
+  #
+  #### observe({
+  ####   ## Throw dataOrg() in so that anytime a selection is made that has the potential to change the data, redirect the client to the 
+	####   ##   data tab.  This is causing shiny to crash IDK why.  I have tried inputDataFile() as well but to no avail.
+	#### if(!is.null(getFileExt()))updateTabsetPanel(session,"tabManager",selected="dataTab")
+  #### })
+  
+  #### observe({
+  ####   if(input$updateRes!=0)updateTabsetPanel(session,"tabManager",selected="resultsTab")
+  #### })
+  
   
   ### (I think) whenever the data change, update the data tab and clear out results tab
   inputChanges <- reactive({list(inputDataFile(),dataOrg(),input$ECx.targets,input$confidenceCI,input$modelType)})
@@ -529,44 +442,6 @@ shinyServer(function(input,output,session) {
   
   
   
-  dataOrg <- reactive({
-    shiny::req(inputDataFile())
-    print("dataOrg")
-    namesInp <- names(inputDataFile())
-    print(namesInp)
-    if (all(c("doses", "responses", "sizes") %in% namesInp)) {
-      indata <-
-        inputDataFile()[, c("doses", "responses", "sizes")]
-    }
-    if (!all(c("doses", "responses", "sizes") %in% namesInp)) {
-      dataDirty <- inputDataFile()
-      ## Have to make sure the UIs are generated before I subset.
-      #if (is.null(input$nameSizeCol))
-      #  return(NULL)
-      indata <-
-        dataDirty[, c(input$nameDoseCol, input$nameRespCol, input$nameSizeCol)]
-      names(indata) <- c("doses", "responses", "sizes")
-    }
-    print(indata)
-    dose0Flag <- NULL
-    #assure data is in dose order
-    indata <- indata[order(indata$doses), ]
-    #aggregate rows that are from same doses
-    indata <- data.frame(doses = indata$doses,
-                         as.data.frame(sapply(
-                           indata[, c("responses", "sizes")],
-                           FUN = function(x, index) {
-                             unname(tapply(x, INDEX = indata$doses, FUN = sum))
-                           }
-                         )))
-    if (any(indata$doses <= 0) & input$modelType=="lcx") {
-      indata <- subset(indata, doses > 0)
-      dose0Flag <-
-        "*At least one dose value was 0 or less and was removed from the analysis"
-    }
-    return(list(indata = indata, dose0Flag = dose0Flag))
-    #} else return(list(indata=indata,dose0Flag=dose0Flag,badDataFlag=badDataFlag))
-  })
   ### End of data read in (did do a few minor calcs)
   
   
@@ -582,7 +457,7 @@ shinyServer(function(input,output,session) {
   
   
   
-
+  #### Main analysis process.  When the button 'calculate results' is clicked
     observeEvent(input$updateRes, {
       updateTabsetPanel(session, "tabs", "Results")
       stampSTRfile <<-  format(Sys.time(), "%Y%m%d%H%M%S")
@@ -761,9 +636,6 @@ shinyServer(function(input,output,session) {
     })
       
   
-  observe({
-    if(input$updateRes!=0)updateTabsetPanel(session,"tabManager",selected="resultsTab")
-  })
   
 
   #### Output 
