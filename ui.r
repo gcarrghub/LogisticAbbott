@@ -48,7 +48,7 @@ shinyUI(fluidPage(
       #textInput("zeroSub","Values to Substitute for Zero (when applicable)",value=NULL),
       textInput("xlab", "x-label for plot", value = "Concentration"),
       textInput("ylab", "y-label for plot", value = "Response Level"),
-      checkboxInput("annot8Plot", "Annotate Plot", value = FALSE),
+      #checkboxInput("annot8Plot", "Annotate Plot", value = FALSE),
       checkboxInput("debugPrint", "Print Debug Info (local only)", value = FALSE),
       br(),
       actionButton("updateRes", "Calculate Results")
@@ -110,18 +110,18 @@ shinyUI(fluidPage(
             tags$li(
               "Select the desired Effect Level using the slider (effect is response level
               as a percent) so 20 is for the concentration resulting in a 
-              20% response level, or 20% of the range when an Abbott background adjustment is made.  
+              20% response level, or 20% of the range after an Abbott background adjustment is made.  
               In cases where the response level of the data does not cover the requested
               effect level, the estimated effect level concentration can be beyond the range of those tested."
             ),
             tags$li(
-              "The 'Calculate Results' button in the lefthand panel will start the analysis, 
+              "The", strong('Calculate Results'), "button in the lefthand panel will start the analysis, 
               after data are selected, as long as some basic criteria are satisfied.  Once completed,
               Both PDF and Excel versions of output can be downloaded at the bottom of results."
             ),
             tags$li(
               strong("Compute time: "),"Results will usually be almost instantaneous when the
-              response profile fits well with a logistic model."
+              response profile covers most of the range from 0 to 100%, and fits well with a logistic model."
             ),
             tags$li(
               strong("Results: "),"The user is fully responsible for addressing validity of results.  
@@ -132,7 +132,14 @@ shinyUI(fluidPage(
               strong("Exiting: "),"Closing the browser window(s) does not stop the R process.  
               If launched inside Rstudio, click the red 'stop sign' button, in the basic R 
               gui press 'Esc'.  Quitting/killing/exiting from R/Rstudio has the same effect."
+            ),
+            tags$li(
+              strong("Errors: "),"When the program encounters an error, such as may occur when data are
+              ill-suited for the analysis, the browser window will go gray.  In most cases, you can
+              reset the tool by simply clicking the reload button of the browser.  Quitting then restarting
+              is always an option."
             )
+            
           ),
           br(),
           strong("Data & File Formats:"),
@@ -210,18 +217,18 @@ shinyUI(fluidPage(
               tags$li(
                 "Select the desired Effect Level using the slider (effect is response level
               as a percent) so 20 is for the concentration resulting in a 
-              20% response level, or 20% of the range when an Abbott background adjustment is made.  
+              20% response level, or 20% of the range after an Abbott background adjustment is made.  
               In cases where the response level of the data does not cover the requested
               effect level, the estimated effect level concentration can be beyond the range of those tested."
               ),
               tags$li(
-                "The 'Calculate Results' button in the lefthand panel will start the analysis, 
+                "The", strong('Calculate Results'), "button in the lefthand panel will start the analysis, 
               after data are selected, as long as some basic criteria are satisfied.  Once completed,
               Both PDF and Excel versions of output can be downloaded at the bottom of results."
               ),
               tags$li(
                 strong("Compute time: "),"Results will usually be almost instantaneous when the
-              response profile fits well with a logistic model."
+              response profile covers most of the range from 0 to 100%, and fits well with a logistic model."
               ),
               tags$li(
                 strong("Results: "),"The user is fully responsible for addressing validity of results.  
@@ -232,12 +239,23 @@ shinyUI(fluidPage(
                 strong("Exiting: "),"Closing the browser window(s) does not stop the R process.  
               If launched inside Rstudio, click the red 'stop sign' button, in the basic R 
               gui press 'Esc'.  Quitting/killing/exiting from R/Rstudio has the same effect."
+              ),
+              tags$li(
+                strong("Errors: "),"When the program encounters an error, such as may occur when data are
+              ill-suited for the analysis, the browser window will go gray.  In most cases, you can
+              reset the tool by simply clicking the reload button of the browser.  Quitting then restarting
+              is always an option."
               )
             ))
         )),
       tabPanel(
         "Results",
         uiOutput("messages"),
+        div(textOutput("zCAWarn"), style = "color:red"),
+        textOutput("noGoodData"),
+        textOutput("zCATrendNote"),
+        br(),
+        tableOutput("zCARes"),
         tableOutput("resultsTable"),
         tableOutput("resultsTableSK"),
         plotOutput("plot"),

@@ -42,6 +42,8 @@ library(shiny)
 library(openxlsx)
 library(optimx)
 library(plotrix)
+library(grid)
+library(gridExtra)
 
 source("LAshinyFuns.R")
 source("SKorig.R")
@@ -569,13 +571,64 @@ shinyServer(function(input,output,session) {
 
     observeEvent(input$updateRes, {
       updateTabsetPanel(session, "tabs", "Results")
-      reactiveVars$stamp <- format(Sys.time(), "%Y%m%d%H%M%S")
-      
+      stampSTRfile <<-  format(Sys.time(), "%Y%m%d%H%M%S")
+
       withProgress({
         setProgress(message = "Please Wait")
         
         isolate({
           #write(as.character(Sys.time()), file="counter.txt", append=TRUE, sep="\n")
+          annotateFUN <- function(eqnCEX=1.5){
+            if(input$modelType=="abbott")mtext(line=-2,side=1,adj=.95,cex=eqnCEX,
+               text=expression(plain(P)==bgroup("(",
+                                                atop(
+                                                  paste(C,phantom(X(1-C)*over(1,textstyle(1+e)^textstyle({-beta*group("[",log[10](d)-LC[50],"]")}))),phantom(XX),dose==0),
+                                                  paste(C+(1-C)*over(textstyle(1),textstyle(1+e)^textstyle({-beta*group("[",log[10](d)-LC[50],"]")})),phantom(XX),dose>0)),
+                                                "")))
+            #if(modelSTR!="abbott")mtext(line=-2,side=1,adj=1,
+            if(input$modelType!="abbott")mtext(line=-2,side=1,adj=.95,cex=1.5,
+                                               text=expression(plain(P)==
+                                                                 paste(over(textstyle(1),textstyle(1+e)^textstyle({-beta*group("[",log[10](d)-LC[50],"]")})))))
+            
+            #lines(x=10^newX,y=predict(glmObject,new=data.frame(logDoses=newX),type="response"),col='gray')
+            #lines(x=10^newX,y=predictionModel(params=nlObject[["par"]],logdoses=newX,ECx=0.5),lwd=2)
+            stampSTR <- date()
+            #if(is.character(inputFile))stampSTR <- paste(stampSTR,inputFile,sep="\n")
+            mtext(side=1,line=-1,outer=TRUE,text=stampSTR,cex=0.6,adj=0.98)
+            
+            # somehow in shiny environment need to overlay new plot region?  I don't understand it
+            # but without, get NaN warnings and tables don't appear
+            par(new=TRUE)
+            plot(1,1,type='n',axes=FALSE,xlab='',ylab='',ylim=c(0,1))
+            addtable2plot(x=par("usr")[1]+0.01*diff(par("usr")[1:2]),
+                          y=0.9,
+                          xjust=0,yjust=0,
+                          table=indata,cex=1)
+            
+            addtable2plot(x=par("usr")[1]+0.01*diff(par("usr")[1:2]),
+                          y=par("usr")[4],
+                          xjust=0,yjust=1,
+                          table=data.frame(
+                            P=100*ECx.targets,
+                            ECp=signif(results["ECx"],digits=3),
+                            lowerCI=signif(CIbounds[1],digits=3),
+                            upperCI=signif(CIbounds[2],digits=3),
+                            confLevel=100*confidenceCI),
+                          cex=1)
+          }
+          
+          finalPlotFUN <- function(){
+            plotSetup.noCI(inputDF=dataOrg()[["indata"]],
+                           modelType=input$modelType,
+                           ECx.target=input$ECx.targets/100,
+                           MLE.ECx=MLE.Parms,
+                           genericDoses = !input$doseTicks,
+                           xlabSTR=input$xlab,ylabSTR=input$ylab)
+            #print(results)
+            #print(c(ECx.targets=ECx.targets,ECx.targets=input$ECx.targets/100,BGparm=BGparm,BGrate=BGrate,modelRange=modelRange))
+            lines(x=CIbounds,y=BGrate + modelRange*c(1,1)*input$ECx.targets/100,lwd=5,col="magenta")
+            
+          }
           
           indata <- dataOrg()[["indata"]]
           ECx.targets <- input$ECx.targets / 100
@@ -583,25 +636,6 @@ shinyServer(function(input,output,session) {
           bgAdjust <- input$modelType=="abbott"
         })
         
-        if(FALSE)list(
-          numRes = t(as.matrix(c(results, MLE.ECx))),
-          plotObs = list(
-            logDoses = logDoses,
-            indata = indata,
-            newX = newX,
-            predictionModel = predictionModel,
-            MLE.ECx = MLE.ECx,
-            ECx.targets = ECx.targets,
-            results = results,
-            lowerPars = lowerPars,
-            upperPars = upperPars,
-            lowerLines = lowerLines,
-            upperLines = upperLines,
-            modelSTR = modelSTR,
-            confidenceCI = confidenceCI
-          ),
-          resShName = isolate(input$shName)
-        )
         results <- logisticLCx(
           inputData = dataOrg()[["indata"]],
           ECxPercent = input$ECx.targets,
@@ -615,6 +649,16 @@ shinyServer(function(input,output,session) {
           CIbounds <- results[PLLhits]
         }
         modelSTR <- toupper(input$modelType)
+        modelRange <- 1
+        BGrate <- 0
+        if(input$modelType=="lcx")MLE.Parms <- tail(results,2)
+        if(input$modelType=="abbott")MLE.Parms <- tail(results,3)
+        if(input$modelType=="abbott"){
+          BGparm <- MLE.Parms[which(regexpr("BG",names(MLE.Parms))>0)]
+          BGrate <- exp(BGparm)/(1+exp(BGparm))
+          modelRange <- 1-BGrate
+        }
+        
         if(modelSTR=="LCX")modelSTR <- "STD"
         resultsDF <- data.frame(method="Logistic",modelType=modelSTR,as.data.frame(rbind(c(results[1:2],CIbounds,NA,input$confidenceCI))))
         names(resultsDF) <- c("Method","ModelType","p","ECp","LowerCL","UpperCL","Trim","ConfLevel")
@@ -628,34 +672,78 @@ shinyServer(function(input,output,session) {
         }
         finalTable <- rbind(resultsDF,resultsDF.SK)
         output$resultsTable <- shiny::renderTable(expr={finalTable},bordered = TRUE,na = "N/A")
-        if(input$modelType=="lcx")MLE.Parms <- tail(results,2)
-        if(input$modelType=="abbott")MLE.Parms <- tail(results,3)
         #print(MLE.Parms)
         #print(predictionModel)
         output$plot <- shiny::renderPlot(expr = {
-          plotSetup.noCI(inputDF=dataOrg()[["indata"]],
-                         modelType=input$modelType,
-                         ECx.target=input$ECx.targets/100,
-                         MLE.ECx=MLE.Parms,
-                         genericDoses = !input$doseTicks,
-                         xlabSTR=input$xlab,ylabSTR=input$ylab)
-          modelRange <- 1
-          BGrate <- 0
-          if(input$modelType=="abbott"){
-            BGparm <- MLE.Parms[which(regexpr("BG",names(MLE.Parms))>0)]
-            BGrate <- exp(BGparm)/(1+exp(BGparm))
-            modelRange <- 1-BGrate
-          }
-          #print(results)
-          #print(c(ECx.targets=ECx.targets,ECx.targets=input$ECx.targets/100,BGparm=BGparm,BGrate=BGrate,modelRange=modelRange))
-          if(length(FIEhits <- which(regexpr("FIE",names(results))>0))>0){
-            lines(x=results[FIEhits],y=BGrate + modelRange*c(1,1)*input$ECx.targets/100,lwd=5,col="magenta")
-          }
-          if(length(PLLhits <- which(regexpr("PLL",names(results))>0))>0){
-            lines(x=results[PLLhits],y=BGrate + modelRange*c(1,1)*input$ECx.targets/100,lwd=5,col="magenta")
-          }
+          finalPlotFUN()
+          if(input$annotate){annotateFUN()}
+          
         })
+        pdffilename <- getPDFfilename()
+        print(pdffilename)
+        pdf(pdffilename, width = 9)
+        par(mai=c(1,1.2,1,0.1))
+        finalPlotFUN()
+        finalPlotFUN()
+        annotateFUN(eqnCEX = 1)
+        #!put formula on lower-right region of figure, depending on type
+          #if(modelSTR=="abbott")mtext(line=-2,side=1,adj=1,cex=.6,
+        grid.newpage()
+        grid.table(indata, rows = NULL)
+        dev.off()
+        
+        
+        setProgress(detail = "Creating Excel")
+        
+        numSheetName <- "Numerical Results"
+        plotSheetName <- "Plot"
+        dataSheetName <- "Analyzed Data"
+        xlsxfilename <- getExcelfilename()
+        print(xlsxfilename)
+        wb <- createWorkbook(creator = "BV shiny app")
+        addWorksheet(wb = wb,sheetName = numSheetName,zoom = 200)
+        #options("openxlsx.numFmt" = "#")
+        setColWidths(wb = wb, sheet = numSheetName, cols = 1:8, widths = 15)
+        writeDataTable(wb = wb,sheet = numSheetName,x = finalTable,withFilter=FALSE)
+        #options("openxlsx.numFmt" = NULL)
+        #,
+        #tableStyle = createStyle(fontSize = 14),
+        #headerStyle = createStyle(fontSize = 14))
+        writeData(wb = wb,sheet = numSheetName,x = date(), startRow=4, startCol=1)
+        #####createSheet(wb, plotSheetName)### XLCONNECT here
+        addWorksheet(wb = wb,sheetName = plotSheetName,zoom = 200)
+        cleanPlotFilename <- paste0("www/cleanResPlot", stampSTRfile, ".png")
+        print(cleanPlotFilename)
+        png(cleanPlotFilename,height=6,width=8,units = "in",res = 200,type = "cairo")
+        par(mai=c(1,1.2,1,0.1))
+        finalPlotFUN()
+        dev.off()
+        ### createName(wb, name="cleanPlot", formula=paste0(plotSheetName,"!$A$1"))### XLCONNECT here
+        ### addImage(wb, filename=cleanPlotFilename, name="cleanPlot", originalSize=TRUE)### XLCONNECT here
+        insertImage(wb = wb,sheet = plotSheetName,file = cleanPlotFilename,
+                    height = 6,width = 8)
+        
+        dirtyPlotFilename <- paste0("www/dirtyResPlot", stampSTRfile, ".png")
+        print(dirtyPlotFilename)
+        png(dirtyPlotFilename,height=6,width=8,units = "in",res = 200,type = "cairo")
+        par(mai=c(1,1.2,1,0.1))
+        finalPlotFUN()
+        annotateFUN(eqnCEX = 1)
+        dev.off()
+        ### createName(wb, name="dirtyPlot", formula=paste0(plotSheetName,"!$N$1"))### XLCONNECT here
+        ### addImage(wb, filename=dirtyPlotFilename, name="dirtyPlot", originalSize=TRUE)### XLCONNECT here
+        insertImage(wb = wb,sheet = plotSheetName,file = dirtyPlotFilename,startCol = 13,
+                    height = 6,width = 8)
+        
+        ### createSheet(wb, dataSheetName)### XLCONNECT here
+        ### writeWorksheet(wb, dataOrgZeroFixed(), dataSheetName)### XLCONNECT here
+        addWorksheet(wb = wb,sheetName = dataSheetName,zoom = 200)
+        writeDataTable(wb = wb,sheet = dataSheetName,x = indata)
+        
+        saveWorkbook(wb = wb,file = xlsxfilename,overwrite = TRUE)
+        
       })
+      reactiveVars$amsg <- "complete"
     })
       
   
@@ -684,7 +772,6 @@ shinyServer(function(input,output,session) {
     gpavaData$logDoses <- logDoses
     gpavaData$doses <- 10^gpavaData$logDoses
     SKlineList <- SKgpava(gpavaData)
-    
     print("SKline")
     print(SKlineList)
     #with(SKline,lines(x=doses,y=adjP,col="blue",lwd=3))
@@ -746,7 +833,7 @@ shinyServer(function(input,output,session) {
   		}
   	})
     
-  }, include.rownames=FALSE, digits=4)
+  }, include.rownames=FALSE, digits=4,bordered = TRUE)
   output$resTab <- renderTable({
   	if(input$updateRes==0){
   		return(NULL)
@@ -769,7 +856,7 @@ shinyServer(function(input,output,session) {
   		})
   	})
     
-  }, include.rownames=FALSE)
+  }, include.rownames=FALSE,bordered = TRUE)
   output$plotRes <- renderPlot({
   	if(input$updateRes==0){
   		return(NULL)
@@ -797,77 +884,43 @@ shinyServer(function(input,output,session) {
   
   
   # Download Results
-  output$downloadResults <- downloadHandler(
-    filename= "output.xlsx",
-    content = function(file) {
-	  numShName <- "Numerical Results"
-	  plotShName <- "Plot"
-      ##Write out the data to an Excel file
-      # If an xls file was provided, write the results to that xlsx file, since writing two images. see ?addimage for explanation
-	  #if(grepl("xls",getFileExt())){
-	  if(grepl("xlsx",getFileExt())){
-	    ### NOTE the gsub, this is necessary to create the named regions later.
-		##   Well, it's just the plotShName that can't have spaces since only there are named regions created, however,
-		##     it's probably less confusing to client to have the same name format for all sheets.
-	    numShName <- make.names( paste0(gsub(" ","_",analysisReact()[["resShName"]]),"_numRes") )
-	    plotShName <- make.names( paste0(gsub(" ","_",analysisReact()[["resShName"]]),"_plot") )
-	    wb <- loadWorkbook(input$inputFile[["datapath"]])
-	    createSheet(wb,c(numShName,plotShName))
-	  } else {
-	    wb <- loadWorkbook("output template.xlsx")
-	    renameSheet(wb,1,numShName)
-		createSheet(wb,plotShName)
-		createSheet(wb,"Original Data")
-		wb$writeWorksheet(dataOrg()[["indata"]], sheet="Original Data", startRow=1, startCol=1, header=TRUE)
-	  }
-	  print(getSheets(wb))
-       trend <- performZCA()
-	  trend[1,] <- format.pval(round(trend[1,],5), digits=2, eps=0.0001, scientific=FALSE)
-       trendPretty <- trend
-	  res <- analysisReact()[["numRes"]]
-	  #res <- res[1,c("x","ECx","PLL.lower","PLL.upper","CIconfidence","beta","ldXX"),drop=FALSE]
-	  res <- res[1,c("x","ECx","PLL.lower","PLL.upper","CIconfidence"),drop=FALSE]
-	  resPretty <- signif( res, digits=5 )
-	 wb$writeWorksheet(trendPretty, sheet=numShName, startRow=1, startCol=1, header=TRUE) 
-      wb$writeWorksheet(resPretty, sheet=numShName, startRow=4, startCol=1, header=TRUE)
-	 
-      wb$writeWorksheet(date(), sheet=numShName, startRow=6, startCol=length(resPretty)+2, header=FALSE)
-	  wb$writeWorksheet(R.version.string, sheet=numShName, startRow=7, startCol=length(resPretty)+2, header=FALSE)
-	  randomNumber <- trunc(runif(1, 10000000, 99999999))
-	  # Although these are the defaults, sometimes the wb has strange cell heights and widths.
-	  setColumnWidth(wb,sheet=numShName,1:10,-1)
-	  setRowHeight(wb,sheet=numShName,1:2,-1)
-	  ## Plots
-	  cleanPlotFilename <- "plots/cleanResPlot.png"
-	  png(cleanPlotFilename,height=600,width=800)
-	  print(plotFun(browserTF=FALSE,masterClean=TRUE,changeCexTF=TRUE))
-	  dev.off()
-      namesRegions <- c("cleanReg","dirtyReg")
-	  createName(wb,name=namesRegions[1],formula=paste0(plotShName,"!$A$1"),overwrite=TRUE)
-	  addImage(wb,filename=cleanPlotFilename,name=namesRegions[1],originalSize=TRUE)
-	  dirtyPlotFilename <- "plots/dirtyResPlot.png"
-	  png(dirtyPlotFilename,height=600,width=800)
-	  print(plotFun(browserTF=FALSE,masterClean=FALSE,changeCexTF=TRUE))
-	  dev.off()
-	  ## I think/hope specifying $N$1 should always work since the size of the png image is fixed.
-	  createName(wb,name=namesRegions[2],formula=paste0(plotShName,"!$N$1"),overwrite=TRUE)
-	  addImage(wb,filename=dirtyPlotFilename,name=namesRegions[2],originalSize=TRUE)
-	  outPath <- paste0("plots/output", randomNumber, ".xlsx")
-      saveWorkbook(wb, outPath)
-	  file.copy(outPath, file)
-	  unlink(c(outPath,cleanPlotFilename,dirtyPlotFilename))
+  getShortFileName <- reactive({
+    paste0("LCXoutput", stampSTRfile)
+  })
+  getPDFfilename <- reactive({
+    paste0("www/", getShortFileName(), ".pdf")
+  })
+  
+  getExcelfilename <- reactive({
+    paste0("www/", getShortFileName(), ".xlsx")
+  })
+  
+  observeEvent({reactiveVars$amsg},{
+    #print(c(rv.amsg=rv$amsg))
+    if(reactiveVars$amsg==""){
+      output$downloadPlot <- downloadHandler(
+        filename=paste0(getShortFileName(), ".pdf"),
+        content=function(file){} 
+      )
+      output$downloadResults <- downloadHandler( 
+        filename=paste0(getShortFileName(), ".xlsx"),
+        content=function(file){}
+      )
     }
-  )    
-  output$downloadPlot <- downloadHandler( 
-   filename="output.pdf",
-   content=function(file){
-     pdf(file)
-     print(plotFun(browserTF=FALSE,masterClean=TRUE))
-     print(plotFun(browserTF=FALSE,masterClean=FALSE))
-     plot(NULL,xlim=c(0,1),ylim=c(0,1),axes=FALSE,xlab="",ylab="")
-	 addtable2plot(.5,1,dataOrg()[["indata"]],xjust=.5,yjust=0)
-     dev.off()
-   }   
-  )
-
+    if(reactiveVars$amsg=="complete"){
+      output$downloadPlot <- downloadHandler(
+        filename=paste0(getShortFileName(), ".pdf"),
+        content=function(file){
+          file.copy(getPDFfilename(), file)
+        }   
+      )
+      output$downloadResults <- downloadHandler( 
+        filename=paste0(getShortFileName(), ".xlsx"),
+        content=function(file){
+          file.copy(getExcelfilename(), file)
+        }   
+      )
+    }
+  })
+  
 })

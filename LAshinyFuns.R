@@ -18,7 +18,7 @@ plotSetup.noCI <- function(inputDF,modelType,MLE.ECx=NULL,ECx.target=0.5,generic
   if(!any(inputDF$doses==0))newX <- seq(min(logDoses)-stepFactor,max(logDoses)+stepFactor,length=1000)
   if( any(inputDF$doses==0))newX <- seq(mean(logDoses[1:2]),max(logDoses)+stepFactor,length=1000)
   plot(x=10^logDoses,y=inputDF$responses/inputDF$sizes,log='x',ylim=c(0,1),xlim=10^range(c(logDoses,newX)),
-       xlab=xlabSTR,ylab=ylabSTR,type='n',axes=FALSE,cex.lab=1.3)
+       xlab=xlabSTR,ylab=ylabSTR,type='n',axes=FALSE,cex.lab=1.5)
   #axis(side=1,at=unique(indata$doses[indata$doses>0]),label=sapply(unique(indata$doses[indata$doses>0]),format))
   labelCodes <- sapply(1:length(unique(inputDF$doses)),FUN=function(i)bquote(C[.(i)]))
   prettyLogs <- axisTicks(usr = par("usr")[1:2],log = TRUE)
@@ -38,11 +38,12 @@ plotSetup.noCI <- function(inputDF,modelType,MLE.ECx=NULL,ECx.target=0.5,generic
   #    axis(side=1,at=axTicks(side=1,usr=c(min(newX),par("usr")[2])))
   #        abline(v=10^(mean(logDoses[1:2])-.03*diff(par("usr")[1:2])))
   if(any(inputDF$doses==0)){
-    points(x=10^(logDoses[1]),y=inputDF$responses[1]/inputDF$sizes[1],pch=16)
+    points(x=10^(logDoses[1]),y=inputDF$responses[1]/inputDF$sizes[1],pch=16,cex=1.5)
     axis(side=1,at=10^min(logDoses),label="Control",las=2,lwd=2)
     axis.break(breakpos=10^(mean(logDoses[1:2])-.03*diff(par("usr")[1:2])))
   }
-  points(x=10^logDoses[inputDF$doses>0],y=inputDF$responses[inputDF$doses>0]/inputDF$sizes[inputDF$doses>0],pch=16,col="darkgray",cex=1.5)
+  points(x=10^logDoses[inputDF$doses>0],y=inputDF$responses[inputDF$doses>0]/inputDF$sizes[inputDF$doses>0],
+         pch=16,col="darkgray",cex=2)
   axis(side=2,cex.axis=1.5,lwd=2,las=1)
   if(!(modelType=="lcx"|modelType=="abbott")){
     points(x=10^logDoses[inputDF$doses>0],
