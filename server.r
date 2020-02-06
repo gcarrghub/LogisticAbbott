@@ -21,8 +21,6 @@ reactiveVars$cleanplot <- NULL
 reactiveVars$stamp <- ""
 reactiveVars$amsg <- ""
 
-## If debugTF spit everything out to console.
-debugTF <- TRUE
 
 ## ALWAYS doTrend 
 doTrend <- TRUE
@@ -49,7 +47,7 @@ shinyServer(function(input,output,session) {
   inputDataFile <- reactive({
     shiny::req(input$inputFile)
     inFile <- input$inputFile
-    print(inFile)
+    #print(inFile)
     if(!is.null(inFile)){
       #reactiveVars$zeros <- FALSE
       fileExt <- sub(".*\\.","",inFile[1])
@@ -79,6 +77,62 @@ shinyServer(function(input,output,session) {
     
   })
 
+  dataOrg <- reactive({
+    #wait for data with correct names
+    shiny::req(inputDataFile())
+    #print("dataOrg")
+    namesInp <- names(inputDataFile())
+    #print(namesInp)
+    if (all(c("doses", "responses", "sizes") %in% namesInp)) {
+      indata <-
+        inputDataFile()[, c("doses", "responses", "sizes")]
+    }
+    if (!all(c("doses", "responses", "sizes") %in% namesInp)) {
+      ## Have to make sure the UIs are generated before I subset.
+      #if (is.null(input$nameSizeCol))
+      #  return(NULL)
+      indata <- inputDataFile()
+      namesInp <- names(indata)
+      #print(namesInp)
+      #print("Map names")
+      #print(indata)
+      shiny::req(c(input$nameDoseCol, input$nameRespCol, input$nameSizeCol))
+      indata <-
+        indata[, c(input$nameDoseCol, input$nameRespCol, input$nameSizeCol)]
+      names(indata) <- c("doses", "responses", "sizes")
+      #print(indata)
+    }
+    
+    #print(indata)
+    dose0Flag <- NULL
+    #assure data is in dose order
+    indata <- indata[order(indata$doses), ]
+    #aggregate rows that are from same doses
+    indata <- data.frame(doses = indata$doses,
+                         as.data.frame(sapply(
+                           indata[, c("responses", "sizes")],
+                           FUN = function(x, index) {
+                             unname(tapply(x, INDEX = indata$doses, FUN = sum))
+                           }
+                         )))
+    if (any(indata$doses <= 0) & input$modelType=="lcx") {
+      indata <- subset(indata, doses > 0)
+      dose0Flag <-
+        "*At least one dose value was 0 or less and was removed from the analysis"
+    }
+    integerCheckTF <- TRUE
+    output$integerCheck <- NULL
+    if(any(indata$sizes!=round(indata$sizes)) | any(indata$responses!=round(indata$responses))  |
+       any(indata$sizes<indata$responses) | any(indata$sizes<0) | any(indata$responses<0)){
+      integerCheckTF <- FALSE
+      output$integerCheck <- renderText({"WARNING:  Non-integer response, total count (sizes), response > size,
+      or <0 values detected.  Results may not be valid or may cause the program to fail."})
+    }
+    
+    return(list(indata = indata, dose0Flag = dose0Flag, integerCheck=integerCheckTF))
+    #} else return(list(indata=indata,dose0Flag=dose0Flag,badDataFlag=badDataFlag))
+  })
+  
   getFileExt <- reactive({
     # Read in the .csv input data
     inFile <- input$inputFile
@@ -175,61 +229,6 @@ shinyServer(function(input,output,session) {
   })
   
   
-  dataOrg <- reactive({
-    #wait for data with correct names
-    shiny::req(inputDataFile())
-    print("dataOrg")
-    namesInp <- names(inputDataFile())
-    print(namesInp)
-    if (all(c("doses", "responses", "sizes") %in% namesInp)) {
-      indata <-
-        inputDataFile()[, c("doses", "responses", "sizes")]
-    }
-    if (!all(c("doses", "responses", "sizes") %in% namesInp)) {
-      ## Have to make sure the UIs are generated before I subset.
-      #if (is.null(input$nameSizeCol))
-      #  return(NULL)
-      indata <- inputDataFile()
-      namesInp <- names(indata)
-      print(namesInp)
-      print("Map names")
-      print(indata)
-      shiny::req(c(input$nameDoseCol, input$nameRespCol, input$nameSizeCol))
-      indata <-
-        indata[, c(input$nameDoseCol, input$nameRespCol, input$nameSizeCol)]
-      names(indata) <- c("doses", "responses", "sizes")
-      print(indata)
-    }
-    
-    print(indata)
-    dose0Flag <- NULL
-    #assure data is in dose order
-    indata <- indata[order(indata$doses), ]
-    #aggregate rows that are from same doses
-    indata <- data.frame(doses = indata$doses,
-                         as.data.frame(sapply(
-                           indata[, c("responses", "sizes")],
-                           FUN = function(x, index) {
-                             unname(tapply(x, INDEX = indata$doses, FUN = sum))
-                           }
-                         )))
-    if (any(indata$doses <= 0) & input$modelType=="lcx") {
-      indata <- subset(indata, doses > 0)
-      dose0Flag <-
-        "*At least one dose value was 0 or less and was removed from the analysis"
-    }
-    integerCheckTF <- TRUE
-    output$integerCheck <- NULL
-    if(any(indata$sizes!=round(indata$sizes)) | any(indata$responses!=round(indata$responses))  |
-       any(indata$sizes<indata$responses) | any(indata$sizes<0) | any(indata$responses<0)){
-      integerCheckTF <- FALSE
-      output$integerCheck <- renderText({"WARNING:  Non-integer response, total count (sizes), response > size,
-      or <0 values detected.  Results may not be valid or may cause the program to fail."})
-    }
-    
-    return(list(indata = indata, dose0Flag = dose0Flag, integerCheck=integerCheckTF))
-    #} else return(list(indata=indata,dose0Flag=dose0Flag,badDataFlag=badDataFlag))
-  })
   
   performZCA <- function(){
     input$updateRes
@@ -363,6 +362,7 @@ shinyServer(function(input,output,session) {
         PC.p <- fisher.test(rbind(PC.matrix[1,],PC.matrix[2,]-PC.matrix[1,]),alt='less')$p.value
         results <- c(results,PC.FE = structure(PC.p,names=NULL))
       }
+      #print(c(debugTF=debugTF))
       if(debugTF)print(formattedP <- sapply(results,FUN=function(x)ifelse(x<1e-6,format.pval(x,eps=1e-6),format(round(x,6),scientific=FALSE))),quote=FALSE)
       #cat("\n")
       #cat("\n\n",formattedP,"\n",sep="\n")
@@ -446,7 +446,12 @@ shinyServer(function(input,output,session) {
     observeEvent(input$updateRes, {
       updateTabsetPanel(session, "tabs", "Results")
       stampSTRfile <<-  format(Sys.time(), "%Y%m%d%H%M%S")
-
+      verbose <<- FALSE
+      debugTF <<- FALSE
+      if(input$debugPrint){
+        verbose <<- TRUE
+        debugTF <<- TRUE
+      }
       withProgress({
         setProgress(message = "Please Wait")
         
@@ -554,7 +559,7 @@ shinyServer(function(input,output,session) {
           
         })
         pdffilename <- getPDFfilename()
-        print(pdffilename)
+        #print(pdffilename)
         pdf(pdffilename, width = 9)
         par(mai=c(1,1.2,1,0.1))
         finalPlotFUN()
@@ -573,7 +578,7 @@ shinyServer(function(input,output,session) {
         plotSheetName <- "Plot"
         dataSheetName <- "Analyzed Data"
         xlsxfilename <- getExcelfilename()
-        print(xlsxfilename)
+        #print(xlsxfilename)
         wb <- createWorkbook(creator = "BV shiny app")
         addWorksheet(wb = wb,sheetName = numSheetName,zoom = 200)
         #options("openxlsx.numFmt" = "#")
@@ -587,7 +592,7 @@ shinyServer(function(input,output,session) {
         #####createSheet(wb, plotSheetName)### XLCONNECT here
         addWorksheet(wb = wb,sheetName = plotSheetName,zoom = 200)
         cleanPlotFilename <- paste0("www/cleanResPlot", stampSTRfile, ".png")
-        print(cleanPlotFilename)
+        #print(cleanPlotFilename)
         png(cleanPlotFilename,height=6,width=8,units = "in",res = 200,type = "cairo")
         par(mai=c(1,1.2,1,0.1))
         finalPlotFUN()
@@ -598,7 +603,7 @@ shinyServer(function(input,output,session) {
                     height = 6,width = 8)
         
         dirtyPlotFilename <- paste0("www/dirtyResPlot", stampSTRfile, ".png")
-        print(dirtyPlotFilename)
+        #print(dirtyPlotFilename)
         png(dirtyPlotFilename,height=6,width=8,units = "in",res = 200,type = "cairo")
         par(mai=c(1,1.2,1,0.1))
         finalPlotFUN()
@@ -644,8 +649,8 @@ shinyServer(function(input,output,session) {
     gpavaData$logDoses <- logDoses
     gpavaData$doses <- 10^gpavaData$logDoses
     SKlineList <- SKgpava(gpavaData)
-    print("SKline")
-    print(SKlineList)
+    #print("SKline")
+    #print(SKlineList)
     #with(SKline,lines(x=doses,y=adjP,col="blue",lwd=3))
     #monoSpline <- with(SKline,splinefun(x=log(doses),y=adjP+0.0001*seq(0,1,length=length(doses)),method="hyman"))
     monoSpline <- with(SKlineList[["SKdata"]],splinefun(x=log(doses),y=adjP+0.000*seq(0,1,length=length(doses)),method="monoH.FC"))

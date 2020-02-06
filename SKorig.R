@@ -34,7 +34,7 @@ spearmanKarberORIG <- function(inputFile=NULL,trim=0,doPlot=FALSE){
   }
   #   subset the data
   #   data2fit <- data2fit[startRow:endRow,]
-  print(data2fit)
+  #print(data2fit)
   #attach so can use just variable names
   attach(data2fit)
   on.exit(detach(2))
@@ -46,7 +46,7 @@ spearmanKarberORIG <- function(inputFile=NULL,trim=0,doPlot=FALSE){
   #weights should be n, based on experiments I did with test cases.
   #It amounts to pooling data between two doses to calculate new p.  sqrt(n) will not do that
   adjRates  <- isotone::gpava(y = adjRates,z = logDoses,weights = sizes)$x
-  print(data.frame(data2fit,origP=rates,adjP=adjRates))
+  #print(data.frame(data2fit,origP=rates,adjP=adjRates))
   #print(str(gpavaData))
   #stop()
   nDoses <- length(rates)
@@ -82,7 +82,7 @@ spearmanKarberORIG <- function(inputFile=NULL,trim=0,doPlot=FALSE){
     adjRatesLine <- approxfun(x=logDoses,y=adjRates)
     lowerTrim <- (uniroot(f=function(x){adjRatesLine(x)-trim},interval=range(logDoses))$root)
     upperTrim <- (uniroot(f=function(x){adjRatesLine(x)-(1-trim)},interval=range(logDoses))$root)
-    print(c(lowerTrim=lowerTrim,upperTrim=upperTrim))
+    #print(c(lowerTrim=lowerTrim,upperTrim=upperTrim))
     if(doPlot){
       abline(h=c(trim,1-trim),lty=2,col=grayCol)
       lines(x=exp(rep(lowerTrim,2)),y=c(0,trim),lty=2,col=grayCol)
@@ -122,7 +122,8 @@ spearmanKarberORIG <- function(inputFile=NULL,trim=0,doPlot=FALSE){
     #adjRates[adjRates>(1-(trim-.001))] <- 1
   }
   if(doPlot)lines(y=adjRates,x=exp(logDoses),col='magenta',type="b",pch=16)
-  print(SKdata <<- data.frame(data2fit,origP=rates,adjP=adjRates,scaleP=trimAdj))
+  SKdata <<- data.frame(data2fit,origP=rates,adjP=adjRates,scaleP=trimAdj)
+  #print(SKdata)
   
   #use the notation of Hamilton et al. to calculate s.e. for CI:
   #the Hamilton paper clearly uses the monotonized values
@@ -130,7 +131,7 @@ spearmanKarberORIG <- function(inputFile=NULL,trim=0,doPlot=FALSE){
   #A <- 0
   L <- max(which(adjRates<=(A+.001)))
   U <- min(which(adjRates>=(1-(A+.001))))
-  print(c(A=A,L=L,U=U))
+  #print(c(A=A,L=L,U=U))
   if(trim==0)SK.trim <- SK
   if((U-L)<=0){
     return(c("SK"=SK.trim,"lower"=NA,"upper"=NA,"trim"=trim))
@@ -138,7 +139,7 @@ spearmanKarberORIG <- function(inputFile=NULL,trim=0,doPlot=FALSE){
   x <- logDoses
   p <- adjRates
   n <- sizes
-  print(data.frame(x=x,p=p,n=n))
+  #print(data.frame(x=x,p=p,n=n))
   #formulae:
   V1 <- ((((x[L+1]-x[L])*(p[L+1]-A)^2)/((p[L+1]-p[L])^2))^2)*p[L]*(1-p[L])/n[L]
   V2 <- (((x[L]-x[L+2]) + (x[L+1]-x[L])*((A-p[L])^2) / (p[L+1]-p[L])^2)^2)*(p[L+1])*(1-p[L+1])/n[L+1]
@@ -155,7 +156,7 @@ spearmanKarberORIG <- function(inputFile=NULL,trim=0,doPlot=FALSE){
   V5.tsk <- ((x[U]-x[U-1])* (1-A-p[U-1])^2  / (p[U]-p[U-1])^2)^2  * p[U]*(1-p[U])/n[U]
   V6 <- ((((x[U]-x[L+1])*((1-A-p[U])^2)/((p[U]-p[L+1])^2)) - ((x[L+1]-x[L])*((A-p[L])^2)/(p[L+1]-p[L])^2) +
             (x[L]-x[U]))^2) * p[L+1]*(1-p[L+1])/n[L+1]
-  print(c(V1=V1,V2=V2,V3=V3,V4=V4,V5=V5,V6=V6,V4.tsk=V4.tsk,V5.tsk=V5.tsk))
+  #print(c(V1=V1,V2=V2,V3=V3,V4=V4,V5=V5,V6=V6,V4.tsk=V4.tsk,V5.tsk=V5.tsk))
   if ((U-L)==1){
     part1 <-  (((0.5-p[U])^2) / ((p[U]-p[L])^4)) * p[L]*(1-p[L])/n[L] + 
       (((0.5-p[L])^2) / ((p[U]-p[L])^4)) * p[U]*(1-p[U])/n[U]
@@ -164,7 +165,7 @@ spearmanKarberORIG <- function(inputFile=NULL,trim=0,doPlot=FALSE){
   if((U-L)==2) var.mu <- (V1+V5+V6)/((2-4*A)^2)
   if((U-L)==3) var.mu <- (V1+V2+V4+V5)/((2-4*A)^2)
   if((U-L)>=4) var.mu <- (V1+V2+V3+V4+V5)/((2-4*A)^2)
-  print(c(se=sqrt(var.mu)))
+  #print(c(se=sqrt(var.mu)))
   
   results <- c(SK=SK.trim,lower=SK.trim-qnorm(0.975)*sqrt(var.mu),upper=SK.trim+qnorm(0.975)*sqrt(var.mu),trim=trim)
   if(doPlot){
@@ -269,7 +270,7 @@ SKbaseplot <- function(inputFile=NULL,trim=0,doPlot=FALSE,verbose=FALSE){
     adjRatesLine <- approxfun(x=logDoses,y=adjRates)
     lowerTrim <- (uniroot(f=function(x){adjRatesLine(x)-trim},interval=range(logDoses))$root)
     upperTrim <- (uniroot(f=function(x){adjRatesLine(x)-(1-trim)},interval=range(logDoses))$root)
-    print(c(lowerTrim=lowerTrim,upperTrim=upperTrim))
+    if(verbose)print(c(lowerTrim=lowerTrim,upperTrim=upperTrim))
     if(doPlot){
       abline(h=c(trim,1-trim),lty=2,col=grayCol)
       lines(x=exp(rep(lowerTrim,2)),y=c(0,trim),lty=2,col=grayCol)
