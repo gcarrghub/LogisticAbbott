@@ -415,7 +415,7 @@ shinyServer(function(input,output,session) {
       phat <- 1/(1+exp(-qlogis(ECx)-(params["beta"])*(logdoses-params["ldXX"])))
       phat
     }
-    
+    reactiveVars$amsg <- ""
     output$plot <- NULL
     output$resultsTable <- NULL
     output$messages <- renderUI({
