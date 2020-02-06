@@ -1,38 +1,4 @@
 
-### Changes to folder5 : Put a help tab on the user interface.
-### Folder 5 allows for an input of .txt, .csv, .xls, or .xlsx.
-### Changes to folder 6 : Output plot into excel file.  If excel file 
-##   read in, add the results to that workbook, else output with original data
-#    into template.
-
-### Changes to folder 7 Setup a progress bar.
-
-### Changes to folder 8 make it non reactive.
-
-### Changes to folder 9 
-# For the pdf, instead of superimposing the data on the figure, do a separate plot (no axes, 
-# type=“n”, etc, to create a clean page) and then addtable2plot() to put the data on the page.  
-# Again, add both the annotated, and clean versions, to the pdf.  Can that be done in the xls file 
-# too?
-## From ?addImage. May have problems with putting multiple images into an Excel wb.
-# There is an known issue in Apache POI with adding images to xls workbooks. The result of adding 
-# images to workbooks that already contain shapes or images may be that previous images are removed 
-# or that existing images are replaced with newly added ones. It is therefore advised that you use 
-# the addImage functionality only with workbooks that have no existing shapes or images. Note that 
-# this only holds for xls workbooks (Excel 97-2003) and not for xlsx (Excel 2007+). 
-# There should be no issues with xlsx workbooks.
-## Make the data read in the same as BV PLL tool.
-
-
-
-#### Because of possibility of excel files with multiple sheets of data that needs to be analyzed, when
-###   creating a sheet with the numRes and plots, paste the name of the sheet to beginning of new sheet name.
-###  Notes :
-###  I have to gsub(" ","",sheetNames) since I create named regions and IDK of a way to create a named region
-###    when the sheet name has a space.
-###  Had to do adjust analysisReact since I need to keep track of what the sheet was active when the user ran the 
-###   analysis NOT when user downloads results.
-
 #### Calculate zCA everytime,
 ##    If no significant trend, alert client using a pop-up dialogue box.
 
@@ -90,14 +56,15 @@ shinyServer(function(input,output,session) {
       
       ## Use grepl because readWorksheet works with both xls and xlsx versions of wb.
       if(grepl("xls",fileExt)){
+        shiny::req(input$shName)
         ### XLCONNECT here
-        wb <- loadWorkbook(inFile$datapath)# same in XLconnect as openxlsx
+        wb <- loadWorkbook(inFile$datapath)
         shName <- input$shName
         if(is.null(shName)){
           indata <- NULL
         } else {
           ### indata <- readWorksheet(wb, sheet=shName, header=TRUE)### XLCONNECT here
-          indata <- readWorkbook(wb, sheet=shName, colNames=TRUE)### XLCONNECT here
+          indata <- readWorkbook(wb, sheet=shName, colNames=TRUE)
         }
       }
       if(fileExt=="txt"){
@@ -106,7 +73,7 @@ shinyServer(function(input,output,session) {
       if(fileExt=="csv"){
         indata <- read.csv(inFile$datapath,header=TRUE)
       }
-      print(indata)
+      #print(indata)
       return(indata)
     }
     
@@ -145,7 +112,7 @@ shinyServer(function(input,output,session) {
         (numericCols>2)
       })]
       #print(shNames)
-      selectInput('shName', 'Select Sheet Containing Data', shNames)
+      selectInput('shName', 'Select Sheet Containing Data', shNames,selected=shNames[1])
     } else NULL
   })
   
@@ -172,6 +139,7 @@ shinyServer(function(input,output,session) {
     shiny::req(inputDataFile())
     namesInp <- names(inputDataFile())
     if (all(c("doses", "responses", "sizes") %in% namesInp)) {
+      # if the right names are already in there, no need to give options
       NULL
     } else {
       namesInFrame <- names(inputDataFile())
@@ -208,6 +176,7 @@ shinyServer(function(input,output,session) {
   
   
   dataOrg <- reactive({
+    #wait for data with correct names
     shiny::req(inputDataFile())
     print("dataOrg")
     namesInp <- names(inputDataFile())
@@ -217,14 +186,21 @@ shinyServer(function(input,output,session) {
         inputDataFile()[, c("doses", "responses", "sizes")]
     }
     if (!all(c("doses", "responses", "sizes") %in% namesInp)) {
-      dataDirty <- inputDataFile()
       ## Have to make sure the UIs are generated before I subset.
       #if (is.null(input$nameSizeCol))
       #  return(NULL)
+      indata <- inputDataFile()
+      namesInp <- names(indata)
+      print(namesInp)
+      print("Map names")
+      print(indata)
+      shiny::req(c(input$nameDoseCol, input$nameRespCol, input$nameSizeCol))
       indata <-
-        dataDirty[, c(input$nameDoseCol, input$nameRespCol, input$nameSizeCol)]
+        indata[, c(input$nameDoseCol, input$nameRespCol, input$nameSizeCol)]
       names(indata) <- c("doses", "responses", "sizes")
+      print(indata)
     }
+    
     print(indata)
     dose0Flag <- NULL
     #assure data is in dose order
@@ -242,7 +218,16 @@ shinyServer(function(input,output,session) {
       dose0Flag <-
         "*At least one dose value was 0 or less and was removed from the analysis"
     }
-    return(list(indata = indata, dose0Flag = dose0Flag))
+    integerCheckTF <- TRUE
+    output$integerCheck <- NULL
+    if(any(indata$sizes!=round(indata$sizes)) | any(indata$responses!=round(indata$responses))  |
+       any(indata$sizes<indata$responses) | any(indata$sizes<0) | any(indata$responses<0)){
+      integerCheckTF <- FALSE
+      output$integerCheck <- renderText({"WARNING:  Non-integer response, total count (sizes), response > size,
+      or <0 values detected.  Results may not be valid or may cause the program to fail."})
+    }
+    
+    return(list(indata = indata, dose0Flag = dose0Flag, integerCheck=integerCheckTF))
     #} else return(list(indata=indata,dose0Flag=dose0Flag,badDataFlag=badDataFlag))
   })
   
@@ -648,6 +633,7 @@ shinyServer(function(input,output,session) {
   })
   output$badDataFlag <- renderText( inputDataFile()[["badDataFlag"]] )
   output$DataTab <- renderTable( inputDataFile() )
+  output$DataTab2 <- renderTable( as.data.frame(lapply(dataOrg()[["indata"]],format)),align = "c")
   output$dose0Flag <- renderText( inputDataFile()[["dose0Flag"]] )
   output$baseplot <- renderPlot(expr={
     plotSetup.noCI(dataOrg()[["indata"]],modelType = "base",genericDoses = !input$doseTicks)
@@ -689,7 +675,7 @@ shinyServer(function(input,output,session) {
 	if( is.null(inputDataRes) ){
 	  return("No data has been uploaded.  Choose an appropriate data file using Choose File button in grey panel")
 	} else if( !is.null(inputDataRes[["badDataFlag"]]) ){
-	  return("Data uploaded was not in the correct format.  See Data For Analyis Tab.")
+	  return("Data uploaded was not in the correct format.  See 'Data For Analyis' Tab.")
 	} else NULL
   })
   

@@ -199,12 +199,15 @@ shinyUI(fluidPage(
       tabPanel(
         "Data For Analysis",
         p("Data read in for Analysis"),
-        div(textOutput("badData"), style = "color:red"),
+        div(textOutput("integerCheck"), style = "color:red"),
         fluidRow(
           column(
             width = 3,
-            tableOutput("DataTab")),
-          column(
+            tableOutput("DataTab"),
+            br(),
+            p("Data to be used for Analysis"),
+            tableOutput("DataTab2")),
+        column(
             width=9,
             plotOutput("baseplot"),          
             strong("Directions:"),
