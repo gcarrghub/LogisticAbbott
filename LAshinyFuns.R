@@ -611,8 +611,8 @@ logistic.abbott.PLL <- function(inputFile=NULL,
           print("inside lowerError IF")
         }
         if(debugTF){
-          print(c(bestSol=bestSol))
-          print(unlist(optimxObjectLI[bestSol,1:(nPars-1)]))
+          #print(c(bestSol=bestSol))
+          print(optimxObjectLI)
         }
         lowerCandidatesPars[ldCandidate,] <- coef(summary(optimxObjectLI,order="value"))[1,]
         if(2*abs(optimxObjectLI[1,"value"]-MLE.LL)>qchisq(confidenceCI,1)){
