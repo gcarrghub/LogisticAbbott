@@ -443,187 +443,187 @@ shinyServer(function(input,output,session) {
   
   
   #### Main analysis process.  When the button 'calculate results' is clicked
-    observeEvent(input$updateRes, {
-      updateTabsetPanel(session, "tabs", "Results")
-      stampSTRfile <<-  format(Sys.time(), "%Y%m%d%H%M%S")
-      verbose <<- FALSE
-      debugTF <<- FALSE
-      if(input$debugPrint){
-        verbose <<- TRUE
-        debugTF <<- TRUE
+  observeEvent(input$updateRes, {
+    updateTabsetPanel(session, "tabs", "Results")
+    stampSTRfile <<-  format(Sys.time(), "%Y%m%d%H%M%S")
+    verbose <<- FALSE
+    debugTF <<- FALSE
+    if(input$debugPrint){
+      verbose <<- TRUE
+      debugTF <<- TRUE
+    }
+    withProgress({
+      setProgress(message = "Please Wait")
+      
+      isolate({
+        #write(as.character(Sys.time()), file="counter.txt", append=TRUE, sep="\n")
+        annotateFUN <- function(eqnCEX=1.5){
+          if(input$modelType=="abbott")mtext(line=-2,side=1,adj=.95,cex=eqnCEX,
+             text=expression(plain(P)==bgroup("(",
+                                              atop(
+                                                paste(C,phantom(X(1-C)*over(1,textstyle(1+e)^textstyle({-beta*group("[",log[10](d)-LC[50],"]")}))),phantom(XX),dose==0),
+                                                paste(C+(1-C)*over(textstyle(1),textstyle(1+e)^textstyle({-beta*group("[",log[10](d)-LC[50],"]")})),phantom(XX),dose>0)),
+                                              "")))
+          #if(modelSTR!="abbott")mtext(line=-2,side=1,adj=1,
+          if(input$modelType!="abbott")mtext(line=-2,side=1,adj=.95,cex=1.5,
+                                             text=expression(plain(P)==
+                                                               paste(over(textstyle(1),textstyle(1+e)^textstyle({-beta*group("[",log[10](d)-LC[50],"]")})))))
+          
+          #lines(x=10^newX,y=predict(glmObject,new=data.frame(logDoses=newX),type="response"),col='gray')
+          #lines(x=10^newX,y=predictionModel(params=nlObject[["par"]],logdoses=newX,ECx=0.5),lwd=2)
+          stampSTR <- date()
+          #if(is.character(inputFile))stampSTR <- paste(stampSTR,inputFile,sep="\n")
+          mtext(side=1,line=-1,outer=TRUE,text=stampSTR,cex=0.6,adj=0.98)
+          
+          # somehow in shiny environment need to overlay new plot region?  I don't understand it
+          # but without, get NaN warnings and tables don't appear
+          par(new=TRUE)
+          plot(1,1,type='n',axes=FALSE,xlab='',ylab='',ylim=c(0,1))
+          addtable2plot(x=par("usr")[1]+0.01*diff(par("usr")[1:2]),
+                        y=0.9,
+                        xjust=0,yjust=0,
+                        table=indata,cex=1)
+          
+          addtable2plot(x=par("usr")[1]+0.01*diff(par("usr")[1:2]),
+                        y=par("usr")[4],
+                        xjust=0,yjust=1,
+                        table=data.frame(
+                          P=100*ECx.targets,
+                          ECp=signif(results["ECx"],digits=3),
+                          lowerCI=signif(CIbounds[1],digits=3),
+                          upperCI=signif(CIbounds[2],digits=3),
+                          confLevel=100*confidenceCI),
+                        cex=1)
+        }
+        
+        finalPlotFUN <- function(){
+          plotSetup.noCI(inputDF=dataOrg()[["indata"]],
+                         modelType=input$modelType,
+                         ECx.target=input$ECx.targets/100,
+                         MLE.ECx=MLE.Parms,
+                         genericDoses = !input$doseTicks,
+                         xlabSTR=input$xlab,ylabSTR=input$ylab)
+          #print(results)
+          #print(c(ECx.targets=ECx.targets,ECx.targets=input$ECx.targets/100,BGparm=BGparm,BGrate=BGrate,modelRange=modelRange))
+          lines(x=CIbounds,y=BGrate + modelRange*c(1,1)*input$ECx.targets/100,lwd=5,col="magenta")
+          
+        }
+        
+        indata <- dataOrg()[["indata"]]
+        ECx.targets <- input$ECx.targets / 100
+        confidenceCI <- input$confidenceCI / 100
+        bgAdjust <- input$modelType=="abbott"
+      })
+      
+      results <- logisticLCx(
+        inputData = dataOrg()[["indata"]],
+        ECxPercent = input$ECx.targets,
+        confLevelPct = input$confidenceCI,
+        modelType = input$modelType)
+      if(length(FIEhits <- which(regexpr("FIE",names(results))>0))>0){
+        CIbounds <- results[FIEhits]
       }
-      withProgress({
-        setProgress(message = "Please Wait")
-        
-        isolate({
-          #write(as.character(Sys.time()), file="counter.txt", append=TRUE, sep="\n")
-          annotateFUN <- function(eqnCEX=1.5){
-            if(input$modelType=="abbott")mtext(line=-2,side=1,adj=.95,cex=eqnCEX,
-               text=expression(plain(P)==bgroup("(",
-                                                atop(
-                                                  paste(C,phantom(X(1-C)*over(1,textstyle(1+e)^textstyle({-beta*group("[",log[10](d)-LC[50],"]")}))),phantom(XX),dose==0),
-                                                  paste(C+(1-C)*over(textstyle(1),textstyle(1+e)^textstyle({-beta*group("[",log[10](d)-LC[50],"]")})),phantom(XX),dose>0)),
-                                                "")))
-            #if(modelSTR!="abbott")mtext(line=-2,side=1,adj=1,
-            if(input$modelType!="abbott")mtext(line=-2,side=1,adj=.95,cex=1.5,
-                                               text=expression(plain(P)==
-                                                                 paste(over(textstyle(1),textstyle(1+e)^textstyle({-beta*group("[",log[10](d)-LC[50],"]")})))))
-            
-            #lines(x=10^newX,y=predict(glmObject,new=data.frame(logDoses=newX),type="response"),col='gray')
-            #lines(x=10^newX,y=predictionModel(params=nlObject[["par"]],logdoses=newX,ECx=0.5),lwd=2)
-            stampSTR <- date()
-            #if(is.character(inputFile))stampSTR <- paste(stampSTR,inputFile,sep="\n")
-            mtext(side=1,line=-1,outer=TRUE,text=stampSTR,cex=0.6,adj=0.98)
-            
-            # somehow in shiny environment need to overlay new plot region?  I don't understand it
-            # but without, get NaN warnings and tables don't appear
-            par(new=TRUE)
-            plot(1,1,type='n',axes=FALSE,xlab='',ylab='',ylim=c(0,1))
-            addtable2plot(x=par("usr")[1]+0.01*diff(par("usr")[1:2]),
-                          y=0.9,
-                          xjust=0,yjust=0,
-                          table=indata,cex=1)
-            
-            addtable2plot(x=par("usr")[1]+0.01*diff(par("usr")[1:2]),
-                          y=par("usr")[4],
-                          xjust=0,yjust=1,
-                          table=data.frame(
-                            P=100*ECx.targets,
-                            ECp=signif(results["ECx"],digits=3),
-                            lowerCI=signif(CIbounds[1],digits=3),
-                            upperCI=signif(CIbounds[2],digits=3),
-                            confLevel=100*confidenceCI),
-                          cex=1)
-          }
-          
-          finalPlotFUN <- function(){
-            plotSetup.noCI(inputDF=dataOrg()[["indata"]],
-                           modelType=input$modelType,
-                           ECx.target=input$ECx.targets/100,
-                           MLE.ECx=MLE.Parms,
-                           genericDoses = !input$doseTicks,
-                           xlabSTR=input$xlab,ylabSTR=input$ylab)
-            #print(results)
-            #print(c(ECx.targets=ECx.targets,ECx.targets=input$ECx.targets/100,BGparm=BGparm,BGrate=BGrate,modelRange=modelRange))
-            lines(x=CIbounds,y=BGrate + modelRange*c(1,1)*input$ECx.targets/100,lwd=5,col="magenta")
-            
-          }
-          
-          indata <- dataOrg()[["indata"]]
-          ECx.targets <- input$ECx.targets / 100
-          confidenceCI <- input$confidenceCI / 100
-          bgAdjust <- input$modelType=="abbott"
-        })
-        
-        results <- logisticLCx(
-          inputData = dataOrg()[["indata"]],
-          ECxPercent = input$ECx.targets,
-          confLevelPct = input$confidenceCI,
-          modelType = input$modelType)
-        if(length(FIEhits <- which(regexpr("FIE",names(results))>0))>0){
-          CIbounds <- results[FIEhits]
-        }
-        #If PLL interval is present, it was done for a reason -- so use it
-        if(length(PLLhits <- which(regexpr("PLL",names(results))>0))>0){
-          CIbounds <- results[PLLhits]
-        }
-        modelSTR <- toupper(input$modelType)
-        modelRange <- 1
-        BGrate <- 0
-        if(input$modelType=="lcx")MLE.Parms <- tail(results,2)
-        if(input$modelType=="abbott")MLE.Parms <- tail(results,3)
-        if(input$modelType=="abbott"){
-          BGparm <- MLE.Parms[which(regexpr("BG",names(MLE.Parms))>0)]
-          BGrate <- exp(BGparm)/(1+exp(BGparm))
-          modelRange <- 1-BGrate
-        }
-        
-        if(modelSTR=="LCX")modelSTR <- "STD"
-        resultsDF <- data.frame(method="Logistic",modelType=modelSTR,as.data.frame(rbind(c(results[1:2],CIbounds,NA,input$confidenceCI))))
-        names(resultsDF) <- c("Method","ModelType","p","ECp","LowerCL","UpperCL","Trim","ConfLevel")
-        output$resultsTableSK <- NULL
-        resultsDF.SK <- NULL
-        if(input$ECx.targets==50){
-          resultsSK <- spearmanKarberORIG(subset(dataOrg()[["indata"]],doses>0),doPlot = FALSE)
-          resultsDF.SK <- data.frame(method="TSK",modelType="Nonparametric",as.data.frame(rbind(c(50,resultsSK[1:4],95))))
-          names(resultsDF.SK) <- c("Method","ModelType","p","ECp","LowerCL","UpperCL","Trim","ConfLevel")
-          #output$resultsTableSK <- shiny::renderTable(expr={resultsDF.SK},bordered = TRUE,na = "N/A")
-        }
-        finalTable <- rbind(resultsDF,resultsDF.SK)
-        output$resultsTable <- shiny::renderTable(expr={finalTable},bordered = TRUE,na = "N/A")
-        #print(MLE.Parms)
-        #print(predictionModel)
-        output$plot <- shiny::renderPlot(expr = {
-          finalPlotFUN()
-          if(input$annotate){annotateFUN()}
-          
-        })
-        pdffilename <- getPDFfilename()
-        #print(pdffilename)
-        pdf(pdffilename, width = 9)
-        par(mai=c(1,1.2,1,0.1))
+      #If PLL interval is present, it was done for a reason -- so use it
+      if(length(PLLhits <- which(regexpr("PLL",names(results))>0))>0){
+        CIbounds <- results[PLLhits]
+      }
+      modelSTR <- toupper(input$modelType)
+      modelRange <- 1
+      BGrate <- 0
+      if(input$modelType=="lcx")MLE.Parms <- tail(results,2)
+      if(input$modelType=="abbott")MLE.Parms <- tail(results,3)
+      if(input$modelType=="abbott"){
+        BGparm <- MLE.Parms[which(regexpr("BG",names(MLE.Parms))>0)]
+        BGrate <- exp(BGparm)/(1+exp(BGparm))
+        modelRange <- 1-BGrate
+      }
+      
+      if(modelSTR=="LCX")modelSTR <- "STD"
+      resultsDF <- data.frame(method="Logistic",modelType=modelSTR,as.data.frame(rbind(c(results[1:2],CIbounds,NA,input$confidenceCI))))
+      names(resultsDF) <- c("Method","ModelType","p","ECp","LowerCL","UpperCL","Trim","ConfLevel")
+      output$resultsTableSK <- NULL
+      resultsDF.SK <- NULL
+      if(input$ECx.targets==50){
+        resultsSK <- spearmanKarberORIG(subset(dataOrg()[["indata"]],doses>0),doPlot = FALSE)
+        resultsDF.SK <- data.frame(method="TSK",modelType="Nonparametric",as.data.frame(rbind(c(50,resultsSK[1:4],95))))
+        names(resultsDF.SK) <- c("Method","ModelType","p","ECp","LowerCL","UpperCL","Trim","ConfLevel")
+        #output$resultsTableSK <- shiny::renderTable(expr={resultsDF.SK},bordered = TRUE,na = "N/A")
+      }
+      finalTable <- rbind(resultsDF,resultsDF.SK)
+      output$resultsTable <- shiny::renderTable(expr={finalTable},bordered = TRUE,na = "N/A")
+      #print(MLE.Parms)
+      #print(predictionModel)
+      output$plot <- shiny::renderPlot(expr = {
         finalPlotFUN()
-        finalPlotFUN()
-        annotateFUN(eqnCEX = 1)
-        #!put formula on lower-right region of figure, depending on type
-          #if(modelSTR=="abbott")mtext(line=-2,side=1,adj=1,cex=.6,
-        grid.newpage()
-        grid.table(indata, rows = NULL)
-        dev.off()
-        
-        
-        setProgress(detail = "Creating Excel")
-        
-        numSheetName <- "Numerical Results"
-        plotSheetName <- "Plot"
-        dataSheetName <- "Analyzed Data"
-        xlsxfilename <- getExcelfilename()
-        #print(xlsxfilename)
-        wb <- createWorkbook(creator = "BV shiny app")
-        addWorksheet(wb = wb,sheetName = numSheetName,zoom = 200)
-        #options("openxlsx.numFmt" = "#")
-        setColWidths(wb = wb, sheet = numSheetName, cols = 1:8, widths = 15)
-        writeDataTable(wb = wb,sheet = numSheetName,x = finalTable,withFilter=FALSE)
-        #options("openxlsx.numFmt" = NULL)
-        #,
-        #tableStyle = createStyle(fontSize = 14),
-        #headerStyle = createStyle(fontSize = 14))
-        writeData(wb = wb,sheet = numSheetName,x = date(), startRow=4, startCol=1)
-        #####createSheet(wb, plotSheetName)### XLCONNECT here
-        addWorksheet(wb = wb,sheetName = plotSheetName,zoom = 200)
-        cleanPlotFilename <- paste0("www/cleanResPlot", stampSTRfile, ".png")
-        #print(cleanPlotFilename)
-        png(cleanPlotFilename,height=6,width=8,units = "in",res = 200,type = "cairo")
-        par(mai=c(1,1.2,1,0.1))
-        finalPlotFUN()
-        dev.off()
-        ### createName(wb, name="cleanPlot", formula=paste0(plotSheetName,"!$A$1"))### XLCONNECT here
-        ### addImage(wb, filename=cleanPlotFilename, name="cleanPlot", originalSize=TRUE)### XLCONNECT here
-        insertImage(wb = wb,sheet = plotSheetName,file = cleanPlotFilename,
-                    height = 6,width = 8)
-        
-        dirtyPlotFilename <- paste0("www/dirtyResPlot", stampSTRfile, ".png")
-        #print(dirtyPlotFilename)
-        png(dirtyPlotFilename,height=6,width=8,units = "in",res = 200,type = "cairo")
-        par(mai=c(1,1.2,1,0.1))
-        finalPlotFUN()
-        annotateFUN(eqnCEX = 1)
-        dev.off()
-        ### createName(wb, name="dirtyPlot", formula=paste0(plotSheetName,"!$N$1"))### XLCONNECT here
-        ### addImage(wb, filename=dirtyPlotFilename, name="dirtyPlot", originalSize=TRUE)### XLCONNECT here
-        insertImage(wb = wb,sheet = plotSheetName,file = dirtyPlotFilename,startCol = 13,
-                    height = 6,width = 8)
-        
-        ### createSheet(wb, dataSheetName)### XLCONNECT here
-        ### writeWorksheet(wb, dataOrgZeroFixed(), dataSheetName)### XLCONNECT here
-        addWorksheet(wb = wb,sheetName = dataSheetName,zoom = 200)
-        writeDataTable(wb = wb,sheet = dataSheetName,x = indata)
-        
-        saveWorkbook(wb = wb,file = xlsxfilename,overwrite = TRUE)
+        if(input$annotate){annotateFUN()}
         
       })
-      reactiveVars$amsg <- "complete"
+      pdffilename <- getPDFfilename()
+      #print(pdffilename)
+      pdf(pdffilename, width = 9)
+      par(mai=c(1,1.2,1,0.1))
+      finalPlotFUN()
+      finalPlotFUN()
+      annotateFUN(eqnCEX = 1)
+      #!put formula on lower-right region of figure, depending on type
+        #if(modelSTR=="abbott")mtext(line=-2,side=1,adj=1,cex=.6,
+      grid.newpage()
+      grid.table(indata, rows = NULL)
+      dev.off()
+      
+      
+      setProgress(detail = "Creating Excel")
+      
+      numSheetName <- "Numerical Results"
+      plotSheetName <- "Plot"
+      dataSheetName <- "Analyzed Data"
+      xlsxfilename <- getExcelfilename()
+      #print(xlsxfilename)
+      wb <- createWorkbook(creator = "BV shiny app")
+      addWorksheet(wb = wb,sheetName = numSheetName,zoom = 200)
+      #options("openxlsx.numFmt" = "#")
+      setColWidths(wb = wb, sheet = numSheetName, cols = 1:8, widths = 15)
+      writeDataTable(wb = wb,sheet = numSheetName,x = finalTable,withFilter=FALSE)
+      #options("openxlsx.numFmt" = NULL)
+      #,
+      #tableStyle = createStyle(fontSize = 14),
+      #headerStyle = createStyle(fontSize = 14))
+      writeData(wb = wb,sheet = numSheetName,x = date(), startRow=4, startCol=1)
+      #####createSheet(wb, plotSheetName)### XLCONNECT here
+      addWorksheet(wb = wb,sheetName = plotSheetName,zoom = 200)
+      cleanPlotFilename <- paste0("www/cleanResPlot", stampSTRfile, ".png")
+      #print(cleanPlotFilename)
+      png(cleanPlotFilename,height=6,width=8,units = "in",res = 200,type = "cairo")
+      par(mai=c(1,1.2,1,0.1))
+      finalPlotFUN()
+      dev.off()
+      ### createName(wb, name="cleanPlot", formula=paste0(plotSheetName,"!$A$1"))### XLCONNECT here
+      ### addImage(wb, filename=cleanPlotFilename, name="cleanPlot", originalSize=TRUE)### XLCONNECT here
+      insertImage(wb = wb,sheet = plotSheetName,file = cleanPlotFilename,
+                  height = 6,width = 8)
+      
+      dirtyPlotFilename <- paste0("www/dirtyResPlot", stampSTRfile, ".png")
+      #print(dirtyPlotFilename)
+      png(dirtyPlotFilename,height=6,width=8,units = "in",res = 200,type = "cairo")
+      par(mai=c(1,1.2,1,0.1))
+      finalPlotFUN()
+      annotateFUN(eqnCEX = 1)
+      dev.off()
+      ### createName(wb, name="dirtyPlot", formula=paste0(plotSheetName,"!$N$1"))### XLCONNECT here
+      ### addImage(wb, filename=dirtyPlotFilename, name="dirtyPlot", originalSize=TRUE)### XLCONNECT here
+      insertImage(wb = wb,sheet = plotSheetName,file = dirtyPlotFilename,startCol = 13,
+                  height = 6,width = 8)
+      
+      ### createSheet(wb, dataSheetName)### XLCONNECT here
+      ### writeWorksheet(wb, dataOrgZeroFixed(), dataSheetName)### XLCONNECT here
+      addWorksheet(wb = wb,sheetName = dataSheetName,zoom = 200)
+      writeDataTable(wb = wb,sheet = dataSheetName,x = indata)
+      
+      saveWorkbook(wb = wb,file = xlsxfilename,overwrite = TRUE)
+      
     })
+    reactiveVars$amsg <- "complete"
+  })
       
   
   
