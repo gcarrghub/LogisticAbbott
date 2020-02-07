@@ -328,7 +328,7 @@ logistic.abbott.PLL <- function(inputFile=NULL,
   }
   if(modelSTR == "lcx"){
     nPars<-2
-    optimxMethods.PLL <- optimxMethods.ucminf
+    optimxMethods.PLL <- optimxMethods.ALL #optimxMethods.ucminf
   }
   #PLL calcs for 2-param LCx model are single-parameter optimizations.  Only ucminf is useful in this setting; others for 2 or more.
   
