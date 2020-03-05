@@ -2,6 +2,18 @@
 #### https://github.com/gcarrghub/LogisticAbbott  # 
 ####                                              # 
 
+
+cleanUp <- function(){
+  globalVars <- c("debugTF","exampleDat",
+                  "LD.Bailer.P","LD.Bailer.P.abbott","logistic.abbott.PLL",
+                  "logisticLCx","packages","packageTests",
+                  "plotSetup.noCI","predictionModel","SKbaseplot",
+                  "SKdata","SKgpava","SKtrimData",
+                  "spearmanKarberORIG","stampSTRfile","verbose")
+  invisible(sapply(globalVars,FUN = function(objname)if(exists(objname,envir = .GlobalEnv))rm(list=objname,envir = .GlobalEnv)))
+}
+cleanUp()
+
 ####
 #### In all cases, should be able to just do the following (as in, the equivalent to sourcing the file)
 #### Details given in if(FALSE){} blocks are details details
