@@ -18,6 +18,7 @@ cleanUp()
 #options(repos = "https://cloud.r-project.org/")
 packages = c("shiny", "shinydashboardPlus","isotone", "gridExtra", "openxlsx", "optimx", "plotrix","devtools","rstudioapi","colourpicker")
 packageTests <- sapply(packages,FUN = require,character.only=TRUE)
+print(packageTests)
 if(all(packageTests)){
   cat("\n",paste(rep("#",100),collapse = ""),
       "\n  All required packages are present.",
@@ -33,6 +34,7 @@ if(sum(!packageTests)>0){
   ### In one case, needed to add this to a users install.packages call:  INSTALL_opts = c('--no-lock')
   # recheck for packages
   packageTests <- sapply(packages,FUN = require,character.only=TRUE)
+  print(packageTests)
   if(all(packageTests)){
     cat("\n",paste(rep("#",100),collapse = ""),
         "\n  All required packages were successfully installed.",
