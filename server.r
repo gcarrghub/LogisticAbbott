@@ -1,21 +1,7 @@
-
-#### Calculate zCA everytime,
-##    If no significant trend, alert client using a pop-up dialogue box.
-
-library(shiny)
-library(shinydashboard)
-library(shinydashboardPlus)
-#library(shinyIncubator)
-#library(XLConnect)
-library(openxlsx)
-library(optimx)
-library(plotrix)
-library(grid)
-library(gridExtra)
-library(colourpicker)
-
 source("LAshinyFuns.R")
 source("SKorig.R")
+
+
 
 reactiveVars <- reactiveValues()
 reactiveVars$zeros <- FALSE

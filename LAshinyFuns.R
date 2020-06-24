@@ -1,4 +1,67 @@
+### manage objects and packages
+cleanUp <- function(){
+  globalVars <- c("debugTF","exampleDat",
+                  "LD.Bailer.P","LD.Bailer.P.abbott","logistic.abbott.PLL",
+                  "logisticLCx","packages","packageTests",
+                  "plotSetup.noCI","predictionModel","SKbaseplot",
+                  "SKdata","SKgpava","SKtrimData",
+                  "spearmanKarberORIG","stampSTRfile","verbose")
+  invisible(sapply(globalVars,FUN = function(objname)if(exists(objname,envir = .GlobalEnv))rm(list=objname,envir = .GlobalEnv)))
+}
+cleanUp()
+
+####
+#### In all cases, should be able to just do the following (as in, the equivalent to sourcing the file)
+#### Details given in if(FALSE){} blocks are details details
+#### Before running the tool need to check for required packages and install if necessary
+#### Typically should only need to do this once per installation of R
+#options(repos = "https://cloud.r-project.org/")
+packages = c("shiny", "shinydashboardPlus","isotone", "gridExtra", "openxlsx", "optimx", "plotrix","devtools","rstudioapi","colourpicker")
+packageTests <- sapply(packages,FUN = require,character.only=TRUE)
+if(all(packageTests)){
+  cat("\n",paste(rep("#",100),collapse = ""),
+      "\n  All required packages are present.",
+      "\n",paste(rep("#",100),collapse = ""),"\n")
+}
+if(sum(!packageTests)>0){
+  cat("\n",paste(rep("#",100),collapse = ""),
+      "\n  Please wait while these required packages and their dependencies are installed:",
+      "\n   ",paste(names(packageTests[!packageTests]),collapse = " "),
+      "\n  Requires internet access and sufficient rights to install R packages on your system.",
+      "\n",paste(rep("#",100),collapse = ""),"\n")
+  install.packages(packages[!packageTests], repos = "https://cran.rstudio.com/", dependencies=TRUE)
+  ### In one case, needed to add this to a users install.packages call:  INSTALL_opts = c('--no-lock')
+  # recheck for packages
+  packageTests <- sapply(packages,FUN = require,character.only=TRUE)
+  if(all(packageTests)){
+    cat("\n",paste(rep("#",100),collapse = ""),
+        "\n  All required packages were successfully installed.",
+        "\n",paste(rep("#",100),collapse = ""),"\n")
+  }
+  if(!all(packageTests)){
+    cat("\n",paste(rep("#",100),collapse = ""),
+        "\n  Not all packages were successfully installed:",
+        "\n   ",paste(names(packageTests[!packageTests]),collapse = " "),
+        "\n",paste(rep("#",100),collapse = ""),"\n")
+  }
+}
+
+library(shiny)
+library(shinydashboard)
+library(shinydashboardPlus)
+#library(shinyIncubator)
+#library(XLConnect)
+library(openxlsx)
+library(optimx)
+library(plotrix)
+library(grid)
+library(gridExtra)
+library(colourpicker)
+
+
 ### LCx functions for Shiny tool
+
+
 plotSetup.noCI <- function(inputDF,modelType,MLE.ECx=NULL,ECx.target=0.5,genericDoses=FALSE,
                            lineColor="blue",ptColor="darkgray",
                            xlabSTR="Exposure Level",ylabSTR="Probability"){
