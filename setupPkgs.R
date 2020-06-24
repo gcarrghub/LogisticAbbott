@@ -5,7 +5,7 @@
 #### Typically should only need to do this once per installation of R
 #options(repos = "https://cloud.r-project.org/")
 packages = c("shiny", "shinydashboardPlus","isotone", "gridExtra", "openxlsx", "optimx", "plotrix","rstudioapi","colourpicker")
-packageTests <- sapply(packages,FUN = require,character.only=TRUE)
+packageTests <- sapply(packages,FUN = require,character.only=TRUE,quietly=TRUE)
 print(packageTests)
 if(all(packageTests)){
   cat("\n",paste(rep("#",100),collapse = ""),
