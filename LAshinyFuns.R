@@ -57,6 +57,7 @@ library(plotrix)
 library(grid)
 library(gridExtra)
 library(colourpicker)
+library(isotone)
 
 
 ### LCx functions for Shiny tool
