@@ -35,5 +35,8 @@ if(sum(!packageTests)>0){
         "\n",paste(rep("#",100),collapse = ""),"\n")
   }
 }
-sapply(packages,FUN = function(pn)library(package=pn,character.only = TRUE))
+sapply(packages,FUN = function(pn){
+  print(pn)
+  library(package=pn,character.only = TRUE)
+  })
 
