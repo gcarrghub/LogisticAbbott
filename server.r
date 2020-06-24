@@ -1,8 +1,6 @@
 source("LAshinyFuns.R")
 source("SKorig.R")
 
-
-
 reactiveVars <- reactiveValues()
 reactiveVars$zeros <- FALSE
 reactiveVars$annotatedplot <- NULL
@@ -32,7 +30,7 @@ if(dir.exists("www")){
 if(!dir.exists("www"))dir.create("www")
 
 shinyServer(function(input,output,session) {
-
+  
   inputDataFile <- reactive({
     shiny::req(input$inputFile)
     inFile <- input$inputFile
@@ -65,7 +63,7 @@ shinyServer(function(input,output,session) {
     }
     
   })
-
+  
   dataOrg <- reactive({
     #wait for data with correct names
     shiny::req(inputDataFile())
@@ -370,8 +368,8 @@ shinyServer(function(input,output,session) {
   #
   #### observe({
   ####   ## Throw dataOrg() in so that anytime a selection is made that has the potential to change the data, redirect the client to the 
-	####   ##   data tab.  This is causing shiny to crash IDK why.  I have tried inputDataFile() as well but to no avail.
-	#### if(!is.null(getFileExt()))updateTabsetPanel(session,"tabManager",selected="dataTab")
+  ####   ##   data tab.  This is causing shiny to crash IDK why.  I have tried inputDataFile() as well but to no avail.
+  #### if(!is.null(getFileExt()))updateTabsetPanel(session,"tabManager",selected="dataTab")
   #### })
   
   #### observe({
@@ -419,7 +417,7 @@ shinyServer(function(input,output,session) {
   ### End of data read in (did do a few minor calcs)
   
   
-
+  
   
   
   
@@ -448,11 +446,11 @@ shinyServer(function(input,output,session) {
         #write(as.character(Sys.time()), file="counter.txt", append=TRUE, sep="\n")
         annotateFUN <- function(eqnCEX=1.5){
           if(input$modelType=="abbott")mtext(line=-2,side=1,adj=.95,cex=eqnCEX,
-             text=expression(plain(P)==bgroup("(",
-                                              atop(
-                                                paste(C,phantom(X(1-C)*over(1,textstyle(1+e)^textstyle({-beta*group("[",log[10](d)-LC[50],"]")}))),phantom(XX),dose==0),
-                                                paste(C+(1-C)*over(textstyle(1),textstyle(1+e)^textstyle({-beta*group("[",log[10](d)-LC[50],"]")})),phantom(XX),dose>0)),
-                                              "")))
+                                             text=expression(plain(P)==bgroup("(",
+                                                                              atop(
+                                                                                paste(C,phantom(X(1-C)*over(1,textstyle(1+e)^textstyle({-beta*group("[",log[10](d)-LC[50],"]")}))),phantom(XX),dose==0),
+                                                                                paste(C+(1-C)*over(textstyle(1),textstyle(1+e)^textstyle({-beta*group("[",log[10](d)-LC[50],"]")})),phantom(XX),dose>0)),
+                                                                              "")))
           #if(modelSTR!="abbott")mtext(line=-2,side=1,adj=1,
           if(input$modelType!="abbott")mtext(line=-2,side=1,adj=.95,cex=1.5,
                                              text=expression(plain(P)==
@@ -490,12 +488,11 @@ shinyServer(function(input,output,session) {
                          modelType=input$modelType,
                          ECx.target=input$ECx.targets/100,
                          MLE.ECx=MLE.Parms,
-                         lineColor = input$line.col,ptColor = input$pt.col,
                          genericDoses = !input$doseTicks,
                          xlabSTR=input$xlab,ylabSTR=input$ylab)
           #print(results)
           #print(c(ECx.targets=ECx.targets,ECx.targets=input$ECx.targets/100,BGparm=BGparm,BGrate=BGrate,modelRange=modelRange))
-          lines(x=CIbounds,y=BGrate + modelRange*c(1,1)*input$ECx.targets/100,lwd=5,col=input$ci.col)
+          lines(x=CIbounds,y=BGrate + modelRange*c(1,1)*input$ECx.targets/100,lwd=5,col="magenta")
           
         }
         
@@ -556,7 +553,7 @@ shinyServer(function(input,output,session) {
       finalPlotFUN()
       annotateFUN(eqnCEX = 1)
       #!put formula on lower-right region of figure, depending on type
-        #if(modelSTR=="abbott")mtext(line=-2,side=1,adj=1,cex=.6,
+      #if(modelSTR=="abbott")mtext(line=-2,side=1,adj=1,cex=.6,
       grid.newpage()
       grid.table(indata, rows = NULL)
       dev.off()
@@ -583,7 +580,7 @@ shinyServer(function(input,output,session) {
       addWorksheet(wb = wb,sheetName = plotSheetName,zoom = 200)
       cleanPlotFilename <- paste0("www/cleanResPlot", stampSTRfile, ".png")
       #print(cleanPlotFilename)
-      png(cleanPlotFilename,height=6,width=8,units = "in",res = 200)#,type = "cairo")
+      png(cleanPlotFilename,height=6,width=8,units = "in",res = 200,type = "cairo")
       par(mai=c(1,1.2,1,0.1))
       finalPlotFUN()
       dev.off()
@@ -594,7 +591,7 @@ shinyServer(function(input,output,session) {
       
       dirtyPlotFilename <- paste0("www/dirtyResPlot", stampSTRfile, ".png")
       #print(dirtyPlotFilename)
-      png(dirtyPlotFilename,height=6,width=8,units = "in",res = 200)#,type = "cairo")
+      png(dirtyPlotFilename,height=6,width=8,units = "in",res = 200,type = "cairo")
       par(mai=c(1,1.2,1,0.1))
       finalPlotFUN()
       annotateFUN(eqnCEX = 1)
@@ -614,29 +611,29 @@ shinyServer(function(input,output,session) {
     })
     reactiveVars$amsg <- "complete"
   })
-      
   
   
-
+  
+  
   #### Output 
-   output$exampDat <- renderTable({ exampleDat }, include.rownames=FALSE)
+  output$exampDat <- renderTable({ exampleDat }, include.rownames=FALSE)
   
   ## Data for Analysis tab
   output$dataReadText <- renderText({
     if(is.null(dataOrg())){ NULL
-	} else { "Data Read in for Analysis ( and aggregated where appropriate )" }
+    } else { "Data Read in for Analysis ( and aggregated where appropriate )" }
   })
   output$badDataFlag <- renderText( inputDataFile()[["badDataFlag"]] )
   output$DataTab <- renderTable( inputDataFile() )
   output$DataTab2 <- renderTable( as.data.frame(lapply(dataOrg()[["indata"]],format)),align = "c")
   output$dose0Flag <- renderText( inputDataFile()[["dose0Flag"]] )
   output$baseplot <- renderPlot(expr={
-    plotSetup.noCI(dataOrg()[["indata"]],modelType = "base",genericDoses = !input$doseTicks,lineColor = input$line.col,ptColor = input$pt.col)
+    plotSetup.noCI(dataOrg()[["indata"]],modelType = "base",genericDoses = !input$doseTicks)
     gpavaData <- subset(dataOrg()[["indata"]])
-    logDosesGP <- log10(gpavaData$doses)
-    stepFactor <- median(diff(sort(unique(logDosesGP))))
-    logDosesGP[!is.finite(logDosesGP)] <- min(logDosesGP[is.finite(logDosesGP)]) - stepFactor
-    gpavaData$logDoses <- logDosesGP
+    logDoses <- log10(gpavaData$doses)
+    stepFactor <- median(diff(sort(unique(logDoses))))
+    logDoses[!is.finite(logDoses)] <- min(logDoses[is.finite(logDoses)]) - stepFactor
+    gpavaData$logDoses <- logDoses
     gpavaData$doses <- 10^gpavaData$logDoses
     SKlineList <- SKgpava(gpavaData)
     #print("SKline")
@@ -645,15 +642,15 @@ shinyServer(function(input,output,session) {
     #monoSpline <- with(SKline,splinefun(x=log(doses),y=adjP+0.0001*seq(0,1,length=length(doses)),method="hyman"))
     monoSpline <- with(SKlineList[["SKdata"]],splinefun(x=log(doses),y=adjP+0.000*seq(0,1,length=length(doses)),method="monoH.FC"))
     logXvals <- with(SKlineList[["SKdata"]],seq(min(log(doses)),max(log(doses)),length=1000))
-    lines(x=exp(logXvals),y=monoSpline(logXvals),col = input$line.col,lwd=3)
+    lines(x=exp(logXvals),y=monoSpline(logXvals),col="magenta",lwd=3)
     if(input$modelType=="lcx"){
-      abline(h=input$ECx.targets/100,lty=2,col=input$ci.col)
+      abline(h=input$ECx.targets/100,lty=2,col="magenta")
       mtext(side=4,at=(input$ECx.targets/100) - 0.03*diff(par("usr")[3:4]),
             text = paste("EC",format(input$ECx.targets)," Level",sep=""),las=1,adj=1,cex=1.5,col="blue")
     }
     if(input$modelType=="abbott"){
       probLevel <- monoSpline(logXvals)[1] + (1-monoSpline(logXvals)[1])*input$ECx.targets/100
-      abline(h=probLevel,lty=2,col=input$ci.col)
+      abline(h=probLevel,lty=2,col="magenta")
       mtext(side=4,at=probLevel - 0.03*diff(par("usr")[3:4]),
             text = paste("EC",format(input$ECx.targets)," Level",sep=""),las=1,adj=1,cex=1.5,col="blue")
     }
@@ -667,74 +664,74 @@ shinyServer(function(input,output,session) {
   ## Results tab
   output$noGoodData <- renderText({
     inputDataRes <- inputDataFile()
-	if( is.null(inputDataRes) ){
-	  return("No data has been uploaded.  Choose an appropriate data file using Choose File button in grey panel")
-	} else if( !is.null(inputDataRes[["badDataFlag"]]) ){
-	  return("Data uploaded was not in the correct format.  See 'Data For Analyis' Tab.")
-	} else NULL
+    if( is.null(inputDataRes) ){
+      return("No data has been uploaded.  Choose an appropriate data file using Choose File button in grey panel")
+    } else if( !is.null(inputDataRes[["badDataFlag"]]) ){
+      return("Data uploaded was not in the correct format.  See 'Data For Analyis' Tab.")
+    } else NULL
   })
   
   output$zCAWarn <- renderText({
     if((performZCA()[,1]>0.05)){ "NO SIGNIFICANT RESPONSE TREND"
-	} else NULL
+    } else NULL
   })
   output$zCATrendNote <- renderText({
     if(doTrend){ "Tests for increasing response trend.
         CAp.exact should be significant.  If not, the use of this program is probably inappropriate, and may result in errors.
         pValues labeled 'fisher' compare rates in each higher concentration against
         the lowest concentration tested.  Ideally, at least one of the 'fisher' results should also be significant."
-	} else NULL
+    } else NULL
   })
   output$zCARes <- renderTable({
-  	if(input$updateRes==0){
-  		return(NULL)
-  	}
-  	input$updateRes
-  	isolate({
-  		inputDataRes <- inputDataFile()  
-  		if( is.null(inputDataRes) | !is.null(inputDataRes[["badDataFlag"]]) ){ NULL 
-  		} else {
-  			trend <- performZCA()
-  			trend[1,] <- format.pval(round(trend[1,],5), digits=2, eps=0.0001, scientific=FALSE)
-  			trend
-  		}
-  	})
+    if(input$updateRes==0){
+      return(NULL)
+    }
+    input$updateRes
+    isolate({
+      inputDataRes <- inputDataFile()  
+      if( is.null(inputDataRes) | !is.null(inputDataRes[["badDataFlag"]]) ){ NULL 
+      } else {
+        trend <- performZCA()
+        trend[1,] <- format.pval(round(trend[1,],5), digits=2, eps=0.0001, scientific=FALSE)
+        trend
+      }
+    })
     
   }, include.rownames=FALSE, digits=4,bordered = TRUE)
   output$resTab <- renderTable({
-  	if(input$updateRes==0){
-  		return(NULL)
-  	}
-  	input$updateRes
-  	isolate({
-  		withProgress(session,{  
-  		inputDataRes <- inputDataFile()  
-  		if( is.null(inputDataRes) | !is.null(inputDataRes[["badDataFlag"]]) ){ NULL
-  		} else {
-  			
-  				if(performZCA()[,1]>0.05)setProgress(message="Calculating, please wait",detail="NO SIGNIFICANT TREND")
-  				if(!(performZCA()[,1]>0.05))setProgress(message="Calculating, please wait")
-  				res <- analysisReact()[["numRes"]]
-  				#print(res[1,c("x","ECx","PLL.lower","PLL.upper","CIconfidence")])
-  				#print(res[c("x","ECx","PLL.lower","PLL.upper","CIconfidence")])
-  				return(signif(res[1,c("x","ECx","PLL.lower","PLL.upper","CIconfidence"), drop=FALSE],5))
-  			
-  		}
-  		})
-  	})
+    if(input$updateRes==0){
+      return(NULL)
+    }
+    input$updateRes
+    isolate({
+      withProgress(session,{  
+        inputDataRes <- inputDataFile()  
+        if( is.null(inputDataRes) | !is.null(inputDataRes[["badDataFlag"]]) ){ NULL
+        } else {
+          
+          if(performZCA()[,1]>0.05)setProgress(message="Calculating, please wait",detail="NO SIGNIFICANT TREND")
+          if(!(performZCA()[,1]>0.05))setProgress(message="Calculating, please wait")
+          res <- analysisReact()[["numRes"]]
+          #print(res[1,c("x","ECx","PLL.lower","PLL.upper","CIconfidence")])
+          #print(res[c("x","ECx","PLL.lower","PLL.upper","CIconfidence")])
+          return(signif(res[1,c("x","ECx","PLL.lower","PLL.upper","CIconfidence"), drop=FALSE],5))
+          
+        }
+      })
+    })
     
   }, include.rownames=FALSE,bordered = TRUE)
   output$plotRes <- renderPlot({
-  	if(input$updateRes==0){
-  		return(NULL)
-  	}
-  	input$updateRes
-  	isolate({
-  		inputDataRes <- inputDataFile()  
-  		if( is.null(inputDataRes) | !is.null(inputDataRes[["badDataFlag"]]) ){ NULL
-  		} else plotFun()
-  	})
-     
+    if(input$updateRes==0){
+      return(NULL)
+    }
+    input$updateRes
+    isolate({
+      inputDataRes <- inputDataFile()  
+      if( is.null(inputDataRes) | !is.null(inputDataRes[["badDataFlag"]]) ){ NULL
+      } else plotFun()
+    })
+    
   })
   
   
