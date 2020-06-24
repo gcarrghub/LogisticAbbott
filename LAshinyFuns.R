@@ -1,5 +1,7 @@
 ### LCx functions for Shiny tool
-plotSetup.noCI <- function(inputDF,modelType,MLE.ECx=NULL,ECx.target=0.5,genericDoses=FALSE,xlabSTR="Exposure Level",ylabSTR="Probability"){
+plotSetup.noCI <- function(inputDF,modelType,MLE.ECx=NULL,ECx.target=0.5,genericDoses=FALSE,
+                           lineColor="blue",ptColor="darkgray",
+                           xlabSTR="Exposure Level",ylabSTR="Probability"){
   #cat("\nplotSetup say modelType = ",modelType,"\n",sep="")
   predictionModelSI <- function(params,logdoses,ECx){
     #DGT0 <- as.numeric(is.finite(logdoses))
@@ -43,12 +45,12 @@ plotSetup.noCI <- function(inputDF,modelType,MLE.ECx=NULL,ECx.target=0.5,generic
     axis.break(breakpos=10^(mean(logDoses[1:2])-.03*diff(par("usr")[1:2])))
   }
   points(x=10^logDoses[inputDF$doses>0],y=inputDF$responses[inputDF$doses>0]/inputDF$sizes[inputDF$doses>0],
-         pch=16,col="darkgray",cex=2)
+         pch=16,col=ptColor,cex=2)
   axis(side=2,cex.axis=1.5,lwd=2,las=1)
   if(!(modelType=="lcx"|modelType=="abbott")){
     points(x=10^logDoses[inputDF$doses>0],
            y=inputDF$responses[inputDF$doses>0]/inputDF$sizes[inputDF$doses>0],
-           pch=1,col="black",cex=0,lwd=2,type="b")
+           pch=1,col=ptColor,cex=0,lwd=2,type="b")
   }
   #        title(expression(plain(p) == bgroup("(",atop(C,C+(1-C)*over(1,1+plain(e)^{-beta*group("[",log[10](d)-LC[50],"]")})),"")))
   #lines(x=10^newX,y=predict(glmObject,new=data.frame(logDoses=newX),type="response"),col='gray')
@@ -59,13 +61,13 @@ plotSetup.noCI <- function(inputDF,modelType,MLE.ECx=NULL,ECx.target=0.5,generic
     newY <- predictionModel(params=MLE.ECx,logdoses=newX,ECx=ECx.target)
     #box(lwd=2)
     
-    lines(x=10^newX,y=newY,lwd=3)
+    lines(x=10^newX,y=newY,lwd=3,col=lineColor)
     if( any(inputDF$doses==0))rug(side=2,x=predictionModel(params=MLE.ECx,logdoses=c(-Inf),ECx=ECx.target))
     #lines(x=10^newX,y=newY,lwd=2,lty=2,col='gray')
     
     if(any(inputDF$doses==0)){
       BGlevel <- predictionModel(params=MLE.ECx,logdoses=c(-Inf),ECx=ECx.target)
-      lines(x=10^c(par("usr")[1],mean(logDoses[1:2])-.06*diff(par("usr")[1:2])),y=rep(BGlevel,2),lwd=3)
+      lines(x=10^c(par("usr")[1],mean(logDoses[1:2])-.06*diff(par("usr")[1:2])),y=rep(BGlevel,2),lwd=3,col=lineColor)
       lines(x=10^c(par("usr")[1],mean(logDoses[1:2])-.06*diff(par("usr")[1:2])),y=rep(BGlevel,2),lwd=2,lty=2,col="gray")
       lines(x=10^c(mean(logDoses[1:2])-.06*diff(par("usr")[1:2]),min(newX)),
             y=c(BGlevel,predictionModel(params=MLE.ECx,logdoses=newX[1],ECx=0.5)),col='gray',lwd=2,lty="dotted")

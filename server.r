@@ -3,6 +3,8 @@
 ##    If no significant trend, alert client using a pop-up dialogue box.
 
 library(shiny)
+library(shinydashboard)
+library(shinydashboardPlus)
 #library(shinyIncubator)
 #library(XLConnect)
 library(openxlsx)
@@ -10,6 +12,7 @@ library(optimx)
 library(plotrix)
 library(grid)
 library(gridExtra)
+library(colourpicker)
 
 source("LAshinyFuns.R")
 source("SKorig.R")
@@ -501,11 +504,12 @@ shinyServer(function(input,output,session) {
                          modelType=input$modelType,
                          ECx.target=input$ECx.targets/100,
                          MLE.ECx=MLE.Parms,
+                         lineColor = input$line.col,ptColor = input$pt.col,
                          genericDoses = !input$doseTicks,
                          xlabSTR=input$xlab,ylabSTR=input$ylab)
           #print(results)
           #print(c(ECx.targets=ECx.targets,ECx.targets=input$ECx.targets/100,BGparm=BGparm,BGrate=BGrate,modelRange=modelRange))
-          lines(x=CIbounds,y=BGrate + modelRange*c(1,1)*input$ECx.targets/100,lwd=5,col="magenta")
+          lines(x=CIbounds,y=BGrate + modelRange*c(1,1)*input$ECx.targets/100,lwd=5,col=input$ci.col)
           
         }
         
@@ -593,7 +597,7 @@ shinyServer(function(input,output,session) {
       addWorksheet(wb = wb,sheetName = plotSheetName,zoom = 200)
       cleanPlotFilename <- paste0("www/cleanResPlot", stampSTRfile, ".png")
       #print(cleanPlotFilename)
-      png(cleanPlotFilename,height=6,width=8,units = "in",res = 200,type = "cairo")
+      png(cleanPlotFilename,height=6,width=8,units = "in",res = 200)#,type = "cairo")
       par(mai=c(1,1.2,1,0.1))
       finalPlotFUN()
       dev.off()
@@ -604,7 +608,7 @@ shinyServer(function(input,output,session) {
       
       dirtyPlotFilename <- paste0("www/dirtyResPlot", stampSTRfile, ".png")
       #print(dirtyPlotFilename)
-      png(dirtyPlotFilename,height=6,width=8,units = "in",res = 200,type = "cairo")
+      png(dirtyPlotFilename,height=6,width=8,units = "in",res = 200)#,type = "cairo")
       par(mai=c(1,1.2,1,0.1))
       finalPlotFUN()
       annotateFUN(eqnCEX = 1)
@@ -641,12 +645,12 @@ shinyServer(function(input,output,session) {
   output$DataTab2 <- renderTable( as.data.frame(lapply(dataOrg()[["indata"]],format)),align = "c")
   output$dose0Flag <- renderText( inputDataFile()[["dose0Flag"]] )
   output$baseplot <- renderPlot(expr={
-    plotSetup.noCI(dataOrg()[["indata"]],modelType = "base",genericDoses = !input$doseTicks)
+    plotSetup.noCI(dataOrg()[["indata"]],modelType = "base",genericDoses = !input$doseTicks,lineColor = input$line.col,ptColor = input$pt.col)
     gpavaData <- subset(dataOrg()[["indata"]])
-    logDoses <- log10(gpavaData$doses)
-    stepFactor <- median(diff(sort(unique(logDoses))))
-    logDoses[!is.finite(logDoses)] <- min(logDoses[is.finite(logDoses)]) - stepFactor
-    gpavaData$logDoses <- logDoses
+    logDosesGP <- log10(gpavaData$doses)
+    stepFactor <- median(diff(sort(unique(logDosesGP))))
+    logDosesGP[!is.finite(logDosesGP)] <- min(logDosesGP[is.finite(logDosesGP)]) - stepFactor
+    gpavaData$logDoses <- logDosesGP
     gpavaData$doses <- 10^gpavaData$logDoses
     SKlineList <- SKgpava(gpavaData)
     #print("SKline")
@@ -655,15 +659,15 @@ shinyServer(function(input,output,session) {
     #monoSpline <- with(SKline,splinefun(x=log(doses),y=adjP+0.0001*seq(0,1,length=length(doses)),method="hyman"))
     monoSpline <- with(SKlineList[["SKdata"]],splinefun(x=log(doses),y=adjP+0.000*seq(0,1,length=length(doses)),method="monoH.FC"))
     logXvals <- with(SKlineList[["SKdata"]],seq(min(log(doses)),max(log(doses)),length=1000))
-    lines(x=exp(logXvals),y=monoSpline(logXvals),col="magenta",lwd=3)
+    lines(x=exp(logXvals),y=monoSpline(logXvals),col = input$line.col,lwd=3)
     if(input$modelType=="lcx"){
-      abline(h=input$ECx.targets/100,lty=2,col="magenta")
+      abline(h=input$ECx.targets/100,lty=2,col=input$ci.col)
       mtext(side=4,at=(input$ECx.targets/100) - 0.03*diff(par("usr")[3:4]),
             text = paste("EC",format(input$ECx.targets)," Level",sep=""),las=1,adj=1,cex=1.5,col="blue")
     }
     if(input$modelType=="abbott"){
       probLevel <- monoSpline(logXvals)[1] + (1-monoSpline(logXvals)[1])*input$ECx.targets/100
-      abline(h=probLevel,lty=2,col="magenta")
+      abline(h=probLevel,lty=2,col=input$ci.col)
       mtext(side=4,at=probLevel - 0.03*diff(par("usr")[3:4]),
             text = paste("EC",format(input$ECx.targets)," Level",sep=""),las=1,adj=1,cex=1.5,col="blue")
     }

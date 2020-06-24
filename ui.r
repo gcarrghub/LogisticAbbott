@@ -1,5 +1,3 @@
-library(shiny)
-
 # don't think we need this since dropping java-based XLconnect
 #options(java.parameters = "-Xss2560k")
 
@@ -14,11 +12,10 @@ shinyUI(fluidPage(
   fluidRow(column(
     width = 3,
     wellPanel(
-      p("Enter the data you wish to analyze"),
       #progressInit(),
       shiny::fileInput(
         inputId = 'inputFile',
-        label = 'Choose File',
+        label = 'Choose Input Data File',
         multiple = FALSE,
         placeholder = "Select a file"
       ),
@@ -32,26 +29,39 @@ shinyUI(fluidPage(
       htmlOutput("sizeColUI"),
       #links to output$sizeColUI for the dialog box to create input$nameSizeCol
       #hr(),
-      sliderInput("ECx.targets", "Effect Level", 5, 95, 50, step = 5),
-      #links to input$ECx.targets
-      sliderInput("confidenceCI", "Confidence Level (Logistic only)", 50, 99, 95, step = 1),
-      #links to input$confidenceCI
-      radioButtons(inputId = "modelType",label = "Model assumption on background",
-        choiceNames = c("Assume Zero (STD)", "Estimate it (Abbott)"),
-        choiceValues = c("lcx", "abbott"),
-        inline = TRUE,
-        width = "100%",
-        selected = "lcx"
+      shinydashboardPlus::gradientBox(
+        sliderInput("ECx.targets", "Effect Level", 5, 95, 50, step = 5),
+        #links to input$ECx.targets
+        sliderInput("confidenceCI", "Confidence Level (Logistic only)", 50, 99, 95, step = 1),
+        #links to input$confidenceCI
+        radioButtons(inputId = "modelType",label = "Control response adjustment?",
+                     choiceNames = c("Assume Zero (STD)", "Estimate it (Abbott)"),
+                     choiceValues = c("lcx", "abbott"),
+                     inline = TRUE,
+                     width = "100%",
+                     selected = "lcx"
+        ),
+        title = "Analysis options:",width=12,background = "red",solidHeader = TRUE,collapsible = TRUE,collapsed=FALSE,closable = FALSE,
+        label_status = "primary",footer_padding = FALSE
       ),
-      checkboxInput("doseTicks", "Axis Ticks at Test Levels", value = FALSE),
-      checkboxInput("annotate", "Annotate Plot", value = FALSE),
-      #textInput("zeroSub","Values to Substitute for Zero (when applicable)",value=NULL),
-      textInput("xlab", "x-label for plot", value = "Concentration"),
-      textInput("ylab", "y-label for plot", value = "Response Level"),
-      #checkboxInput("annot8Plot", "Annotate Plot", value = FALSE),
+      shinydashboard::box(
+                          fluidRow(
+                            column(6,checkboxInput(inputId="doseTicks",label="Axis Ticks at Test Levels", value = FALSE)),
+                            column(6,checkboxInput(inputId="annotate", label="Annotate Plot", value = FALSE))
+                          ),
+                          #textInput("zeroSub","Values to Substitute for Zero (when applicable)",value=NULL),
+                          textInput("xlab", "x-label for plot", value = "Concentration"),
+                          textInput("ylab", "y-label for plot", value = "Response Level"),
+                          #checkboxInput("annot8Plot", "Annotate Plot", value = FALSE),
+                          fluidRow(
+                            column(4,colourpicker::colourInput("line.col", "Line Color", "#367AA8",showColour = "background")),
+                            column(4,colourpicker::colourInput("ci.col", "CI Color", "#0D5920",showColour = "background")),
+                            column(4,colourpicker::colourInput("pt.col", "Points Color", "gray",showColour = "background"))
+                          ),
+                          title="Plot options:",width=12,solidHeader=TRUE,background = "light-blue"),
       checkboxInput("debugPrint", "Print Debug Info (local only)", value = FALSE),
-      br(),
-      actionButton("updateRes", "Calculate Results")
+      actionButton("updateRes", "Calculate Results"),
+      strong("Re-run to commit color changes to outputs")
     )
   ),
   column(
@@ -62,14 +72,14 @@ shinyUI(fluidPage(
         "Help/Documentation",
         h3("Firefox or Chrome browsers suggested."),
         tags$ul(
-          tags$li("Others may work (e.g., Safari and Brave on Mac) but NOT MS IE in Windows."),
+          tags$li("Others may work (e.g., Safari and Brave on Mac) but NOT MS windows IE."),
           tags$li(
-            "Usually the tool will open in your default browser.  
-          If you are not certain of your browser's compatibility, 
-          simply copy-paste the full link/address into the address 
+            "The tool should open in your default browser, regardless of compatibility.  
+          Whenever this is a question, 
+          the full link/address can be copied into the address 
           bar of an open Chrome or Firefox window.  
-          Your R session provides the same address in a message 
-          that should look like 'Listening on http://127.0.0.1:XXXX'."
+          Your R session console also provides the address in a message 
+          that should look like 'Listening on'",strong("http://127.0.0.1:XXXX/"),"'."
           ),
           tags$li(
             "It's even OK to have multiple sessions open that point 
@@ -89,7 +99,7 @@ shinyUI(fluidPage(
         tags$ul(
           tags$li(
             strong(
-              "This tool is appropriate for binary response data, such of mortaility."
+              "This tool is appropriate for binary response data, such as mortaility."
             )
           ),
           tags$li(
