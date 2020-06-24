@@ -36,6 +36,7 @@ if(FALSE){
 ### as long as chrome or firefox are your default browsers
 ### this should work in Rstudio, the Rgui, or even a terminal window on mac
 library(shiny)
+devtools::source_url("https://raw.githubusercontent.com/gcarrghub/LogisticAbbott/master/setupPkgs.R")
 runGitHub("LogisticAbbott", "gcarrghub",launch.browser=TRUE)
 
 
