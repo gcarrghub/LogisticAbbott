@@ -19,9 +19,9 @@ cleanUp()
 #### Details given in if(FALSE){} blocks are details details
 #### Before running the tool need to check for required packages and install if necessary
 #### Typically should only need to do this once per installation of R
-options(repos = "https://cloud.r-project.org/")
+#options(repos = "https://cloud.r-project.org/")
 packages = c("shiny", "shinydashboardPlus","isotone", "gridExtra", "openxlsx", "optimx", "plotrix","devtools","rstudioapi","colourpicker")
-packageTests <- sapply(packages,FUN = require,character.only=TRUE)
+packageTests <- sapply(packages,FUN = require,character.only=TRUE)#,type="binary")
 if(all(packageTests)){
   cat("\n",paste(rep("#",100),collapse = ""),
       "\n  All required packages are present.",
