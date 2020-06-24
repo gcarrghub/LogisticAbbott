@@ -32,7 +32,7 @@ if(sum(!packageTests)>0){
       "\n   ",paste(names(packageTests[!packageTests]),collapse = " "),
       "\n  Requires internet access and sufficient rights to install R packages on your system.",
       "\n",paste(rep("#",100),collapse = ""),"\n")
-  install.packages(packages[!packageTests], repos = "https://cran.rstudio.com/", dependencies=TRUE)
+  install.packages(packages[!packageTests], repos = "https://cran.rstudio.com/", dependencies=TRUE,type="binary")
   ### In one case, needed to add this to a users install.packages call:  INSTALL_opts = c('--no-lock')
   # recheck for packages
   packageTests <- sapply(packages,FUN = require,character.only=TRUE)
