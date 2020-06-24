@@ -31,11 +31,16 @@ if(FALSE){
 
 
 
-### once the packages above are installed
-### the tool will run with only these two lines
 ### as long as chrome or firefox are your default browsers
 ### this should work in Rstudio, the Rgui, or even a terminal window on mac
 library(shiny)
+### the rest requires devtools
+if(!require(devtools)){
+  cat("\n",paste(rep("#",100),collapse = ""),
+      "\n  Please wait while 'devtools' dependencies are installed:",
+      "\n",paste(rep("#",100),collapse = ""))
+      install.packages("devtools", repos = "https://cloud.r-project.org/", dependencies=TRUE)
+}
 devtools::source_url("https://raw.githubusercontent.com/gcarrghub/LogisticAbbott/master/setupPkgs.R")
 runGitHub("LogisticAbbott", "gcarrghub",launch.browser=TRUE)
 
