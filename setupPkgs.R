@@ -35,8 +35,11 @@ if(sum(!packageTests)>0){
         "\n",paste(rep("#",100),collapse = ""),"\n")
   }
 }
+### explicitly load each package
+### I think all of the require() checking above is sufficient, but just in case...
+cat("\n\n")
 sapply(packages,FUN = function(pn){
-  print(pn)
+  cat(paste("Loading package",pn),"\n")
   library(package=pn,character.only = TRUE)
   })
 
