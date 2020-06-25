@@ -3,6 +3,23 @@
 ####                                              # 
 
 
+### as long as chrome or firefox are your default browsers
+### this should work in Rstudio, the Rgui, or even a terminal window on mac
+### the URL in whatever browser address bar can always be copied into another browser
+
+library(shiny)
+### the sourcing the setupPkgs.R requires devtools::source_url(), so force that one first,
+### all others are processed in setupPkgs.R
+if(!require(devtools)){
+  cat("\n",paste(rep("#",100),collapse = ""),
+      "\n  Please wait while 'devtools' package and its dependencies are installed",
+      "\n",paste(rep("#",100),collapse = ""))
+  install.packages("devtools", repos = "https://cloud.r-project.org/", dependencies=TRUE)
+}
+devtools::source_url("https://raw.githubusercontent.com/gcarrghub/LogisticAbbott/master/setupPkgs.R")
+runGitHub("LogisticAbbott", "gcarrghub",launch.browser=TRUE)
+
+
 
 if(FALSE){
   #can use this command to download a copy of the data -- only works inside of rstudio
@@ -31,18 +48,6 @@ if(FALSE){
 
 
 
-### as long as chrome or firefox are your default browsers
-### this should work in Rstudio, the Rgui, or even a terminal window on mac
-library(shiny)
-### the rest requires devtools
-if(!require(devtools)){
-  cat("\n",paste(rep("#",100),collapse = ""),
-      "\n  Please wait while 'devtools' dependencies are installed:",
-      "\n",paste(rep("#",100),collapse = ""))
-      install.packages("devtools", repos = "https://cloud.r-project.org/", dependencies=TRUE)
-}
-devtools::source_url("https://raw.githubusercontent.com/gcarrghub/LogisticAbbott/master/setupPkgs.R")
-runGitHub("LogisticAbbott", "gcarrghub",launch.browser=TRUE)
 
 
 if(FALSE){
