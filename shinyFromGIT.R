@@ -16,7 +16,7 @@ if(!require(devtools)){
       "\n",paste(rep("#",100),collapse = ""))
   install.packages("devtools", repos = "https://cloud.r-project.org/", dependencies=TRUE)
 }
-devtools::source_url("https://raw.githubusercontent.com/gcarrghub/LogisticAbbott/master/setupPkgs.R")
+#devtools::source_url("https://raw.githubusercontent.com/gcarrghub/LogisticAbbott/master/setupPkgs.R")
 runGitHub("LogisticAbbott", "gcarrghub",launch.browser=TRUE)
 
 

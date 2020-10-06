@@ -1,3 +1,4 @@
+source("setupPkgs.R")
 source("LAshinyFuns.R")
 source("SKorig.R")
 
