@@ -87,7 +87,6 @@ shinyServer(function(input,output,session) {
       indata <-
         indata[, c(input$nameDoseCol, input$nameRespCol, input$nameSizeCol)]
       names(indata) <- c("doses", "responses", "sizes")
-      #print(indata)
     }
     
     #print(indata)
@@ -95,7 +94,7 @@ shinyServer(function(input,output,session) {
     #assure data is in dose order
     indata <- indata[order(indata$doses), ]
     #aggregate rows that are from same doses
-    indata <- data.frame(doses = indata$doses,
+    if(FALSE)indata <- data.frame(doses = indata$doses,
                          as.data.frame(sapply(
                            indata[, c("responses", "sizes")],
                            FUN = function(x, index) {
@@ -115,7 +114,10 @@ shinyServer(function(input,output,session) {
       output$integerCheck <- renderText({"WARNING:  Non-integer response, total count (sizes), response > size,
       or <0 values detected.  Results may not be valid or may cause the program to fail."})
     }
-    
+    print(indata)
+    print(str(indata))
+    indata <- aggregate(cbind(responses,sizes)~doses,data=indata,FUN = sum)
+    print(indata)
     return(list(indata = indata, dose0Flag = dose0Flag, integerCheck=integerCheckTF))
     #} else return(list(indata=indata,dose0Flag=dose0Flag,badDataFlag=badDataFlag))
   })
