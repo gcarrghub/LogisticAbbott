@@ -115,10 +115,10 @@ shinyServer(function(input,output,session) {
       output$integerCheck <- renderText({"WARNING:  Non-integer response, total count (sizes), response > size,
       or <0 values detected.  Results may not be valid or may cause the program to fail."})
     }
-    print(indata)
-    print(str(indata))
+    #print(indata)
+    #print(str(indata))
     indata <- aggregate(cbind(responses,sizes)~doses,data=indata,FUN = sum)
-    print(indata)
+    #print(indata)
     return(list(indata = indata, dose0Flag = dose0Flag, integerCheck=integerCheckTF))
     #} else return(list(indata=indata,dose0Flag=dose0Flag,badDataFlag=badDataFlag))
   })
